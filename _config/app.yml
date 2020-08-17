@@ -1,0 +1,14 @@
+---
+Name: iqformbuilder
+---
+SilverStripe\Control\Controller:
+  extensions:
+    - IQnection\FormBuilder\Control\FormHandler
+SilverStripe\Core\Injector\Injector:
+  Psr\SimpleCache\CacheInterface.formbuilder:
+    factory: SilverStripe\Core\Cache\CacheFactory
+    constructor:
+      namespace: "formbuilder"
+
+
+ 

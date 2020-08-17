@@ -1,0 +1,138 @@
+<?php
+
+namespace IQnection\FormBuilder\Rules\RuleActions;
+
+use SilverStripe\ORM\DataObject;
+use IQnection\FormBuilder\Fields\EmailField;
+use IQnection\FormBuilder\Model\RuleAction;
+use IQnection\FormBuilder\Model\Field;
+use IQnection\FormBuilder\Model\Rule;
+use SilverStripe\Forms;
+use Symbiote\GridFieldExtensions\GridFieldAddNewMultiClass;
+use Symbiote\GridFieldExtensions\GridFieldAddNewInlineButton;
+use Symbiote\GridFieldExtensions\GridFieldAddExistingSearchButton;
+use Symbiote\GridFieldExtensions\GridFieldEditableColumns;
+use Symbiote\GridFieldExtensions\GridFieldOrderableRows;
+use Symbiote\GridFieldExtensions\GridFieldTitleHeader;
+
+class ChangeFieldDisplayAction extends RuleAction
+{
+	private static $table_name = 'FormBuilderChangeFieldDisplayAction';
+	private static $singular_name = 'Change Field Display';
+	private static $plural_name = 'Change Field Display';
+	
+	private static $many_many = [
+		'FormBuilderFields' => Field::class
+	];
+	
+	private static $many_many_extraFields = [
+		'FormBuilderFields' => [
+			'Show' => 'Boolean'
+		]
+	];
+	
+	public function getCMSFields()
+	{
+		$fields = parent::getCMSFields();
+		$fields->removeByName([
+			'FormBuilderFields'
+		]);
+		if (!$this->Exists())
+		{
+			$fields->addFieldToTab('Root.Main', Forms\HeaderField::create('_formBuilderFieldsWarning','Please save to continue',2));
+		}
+		else
+		{
+			$fields->addFieldToTab('Root.Main', $fields_gf = Forms\GridField\GridField::create(
+				'FormBuilderFields',
+				'Fields',
+				$this->FormBuilderFields(),
+				Forms\GridField\GridFieldConfig::create(100)
+					->addComponent(new Forms\GridField\GridFieldButtonRow('before'))
+					->addComponent(new Forms\GridField\GridFieldToolbarHeader())
+					->addComponent(new GridFieldTitleHeader())
+					->addComponent($editableColumns = new GridFieldEditableColumns())
+					->addComponent(new Forms\GridField\GridFieldDeleteAction())
+					->addComponent($searchButton = new GridFieldAddExistingSearchButton())
+			));
+			$searchButton->setTitle('Add Field');
+			$AvailableDisplayFields = $this->getAvailableDisplayFields();
+			$editableColumns->setDisplayFields([
+				'Show' => [
+					'title' => 'Display',
+					'callback' => function($record, $col, $grid) {
+						return Forms\OptionsetField::create('Show','Display')
+							->setSource([1 => 'Show', 0 => 'Hide']);
+					}
+				],
+				'ID' => [
+					'title' => 'Field',
+					'callback' => function($record, $col, $grid) use ($AvailableDisplayFields) {
+						return Forms\DropdownField::create('ID','Field')
+							->setSource($AvailableDisplayFields->map('ID','Name'));
+					}
+				]
+			]);
+		}
+		return $fields;
+	}
+	
+	public function getBetterButtonsActions()
+	{
+		$actions = parent::getBetterButtonsActions();
+		if (!$this->Exists())
+		{
+			$actions->removeByName(['action_doSaveAndQuit']);
+			$actions->renameField('action_save','Continue');
+		}		
+		return $actions;
+	}
+	
+	public function getTitle()
+	{
+		return 'Show/Hide Fields';
+	}
+	
+	public function ActionSummary()
+	{
+		$summary = [];
+		foreach($this->FormBuilderFields() as $field)
+		{
+			$summary[] = ($field->Show ? "Show: " : "Hide: ").$field->Name;
+		}
+		return implode("\n", $summary);
+	}
+	
+	public function getAvailableDisplayFields()
+	{
+		$fields = Rule::get()->byID($this->RuleID)->Form()->FieldsFlat();
+		$this->extend('updateAvailableDisplayFields', $fields);
+		return $fields;
+	}
+	
+	public function getFormBuilderActionJavaScript()
+	{
+		$js = parent::getFormBuilderActionJavaScript();
+		foreach($this->FormBuilderFields() as $field)
+		{
+			$js[] = [
+				'callback' => 'action_updateFieldDisplay',
+				'fieldId' => $field->getFrontendFieldID(),
+				'fieldName' => $field->getFrontendFieldName()
+			];
+		}
+		return $js;
+	}
+}
+
+
+
+
+
+
+
+
+
+
+
+

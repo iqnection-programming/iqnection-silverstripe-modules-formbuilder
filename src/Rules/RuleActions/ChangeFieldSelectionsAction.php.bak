@@ -1,0 +1,174 @@
+<?php
+
+namespace IQnection\FormBuilder\Rules\RuleActions;
+
+use SilverStripe\ORM\DataObject;
+use IQnection\FormBuilder\Fields\EmailField;
+use IQnection\FormBuilder\Model\RuleAction;
+use IQnection\FormBuilder\Model\Field;
+use IQnection\FormBuilder\Model\Rule;
+use IQnection\FormBuilder\Model\SelectFieldOption;
+use SilverStripe\Forms;
+use Symbiote\GridFieldExtensions\GridFieldAddNewMultiClass;
+use Symbiote\GridFieldExtensions\GridFieldAddNewInlineButton;
+use Symbiote\GridFieldExtensions\GridFieldAddExistingSearchButton;
+use Symbiote\GridFieldExtensions\GridFieldEditableColumns;
+use Symbiote\GridFieldExtensions\GridFieldOrderableRows;
+use Symbiote\GridFieldExtensions\GridFieldTitleHeader;
+use IQnection\FormBuilder\Extensions\SelectField;
+
+
+class ChangeFieldSelectionsAction extends RuleAction
+{
+	private static $table_name = 'FormBuilderChangeFieldSelectionsAction';
+	private static $singular_name = 'Change Field Selections';
+	private static $plural_name = 'Change Field Selections';
+	
+	private static $many_many = [
+		'FormBuilderOptions' => SelectFieldOption::class
+	];
+	
+	private static $many_many_extraFields = [
+		'FormBuilderOptions' => [
+			'Show' => 'Boolean'
+		]
+	];
+	
+	public function getCMSFields()
+	{
+		$fields = parent::getCMSFields();
+		$fields->removeByName([
+			'FormBuilderOptions'
+		]);
+		if (!$this->Exists())
+		{
+			$fields->addFieldToTab('Root.Main', Forms\HeaderField::create('_formBuilderOptionsWarning','Please save to continue',2));
+		}
+		else
+		{
+			$fields->addFieldToTab('Root.Main', $fields_gf = Forms\GridField\GridField::create(
+				'FormBuilderOptions',
+				'Options',
+				$this->FormBuilderOptions(),
+				Forms\GridField\GridFieldConfig::create(100)
+					->addComponent(new Forms\GridField\GridFieldButtonRow('before'))
+					->addComponent(new Forms\GridField\GridFieldToolbarHeader())
+					->addComponent(new GridFieldTitleHeader())
+					->addComponent($editableColumns = new GridFieldEditableColumns())
+					->addComponent(new Forms\GridField\GridFieldDeleteAction())
+					->addComponent($searchButton = new GridFieldAddExistingSearchButton())
+			));
+			$AvailableDisplayFields = $this->getAvailableDisplayFields();
+			$optionIDs = [];
+			foreach($AvailableDisplayFields as $field)
+			{
+				$optionIDs = array_merge($optionIDs, $field->Options()->Column('ID'));
+			}
+			$searchButton->setTitle('Add Field Selection')
+				->setSearchList(SelectFieldOption::get()->byIDs($optionIDs)->Sort('FieldID, SortOrder'));
+			
+			$editableColumns->setDisplayFields([
+				'Show' => [
+					'title' => 'Display',
+					'callback' => function($record, $col, $grid) {
+						return Forms\OptionsetField::create('Show','Display')
+							->setSource([1 => 'Show', 0 => 'Hide']);
+					}
+				],
+				'Field.Name' => [
+					'title' => 'Field',
+					'field' => Forms\ReadonlyField::class
+				],
+				'Value' => [
+					'title' => 'Option',
+					'field' => Forms\ReadonlyField::class
+//					'callback' => function($record, $col, $grid) use ($AvailableDisplayFields) {
+//						$optionsArray = [];
+//						foreach($AvailableDisplayFields as $field)
+//						{
+//							foreach($field->Options() as $option)
+//							{
+//								$optionsArray[$field->Name][$option->ID] = $option->getOptionLabel();
+//							}
+//						}
+//						return Forms\GroupedDropdownField::create('ID','Field Option')
+//							->setSource($optionsArray);
+//					}
+				],
+			]);
+		}
+		return $fields;
+	}
+	
+	public function getBetterButtonsActions()
+	{
+		$actions = parent::getBetterButtonsActions();
+		if (!$this->Exists())
+		{
+			$actions->removeByName(['action_doSaveAndQuit']);
+			$actions->renameField('action_save','Continue');
+		}		
+		return $actions;
+	}
+	
+	public function getTitle()
+	{
+		return 'Show/Hide Field Options';
+	}
+	
+	public function ActionSummary()
+	{
+		$summary = [];
+		foreach($this->FormBuilderOptions() as $optionChange)
+		{
+			$summary[] = ($optionChange->Show ? "Show " : "Hide ").'value "'.$optionChange->Value.'" in field '.$optionChange->Field()->Name;
+		}
+		return implode("\n", $summary);
+	}
+	
+	public function getAvailableDisplayFields()
+	{
+		$fieldIDs = [];
+		foreach(Rule::get()->byID($this->RuleID)->Form()->DataFields() as $field)
+		{
+			if ($field->hasExtension(SelectField::class))
+			{
+				$fieldIDs[] = $field->ID;
+			}
+		}
+		$fields = Field::get()->byIDs($fieldIDs);
+		$this->extend('updateAvailableDisplayFields', $fields);
+		return $fields;
+	}
+	
+	public function getFormBuilderActionJavaScript()
+	{
+		$js = parent::getFormBuilderActionJavaScript();
+		foreach($this->FormBuilderOptions() as $fieldOption)
+		{
+			$js[] = [
+				'callback' => 'action_updateFieldSelection',
+				'fieldId' => $fieldOption->Field()->getFrontendFieldID(),
+				'fieldName' => $fieldOption->Field()->getFrontendFieldName(),
+				'option' => [
+					'value' => $fieldOption->ID,
+					'label' => $fieldOption->getOptionLabel(),
+					'show' => (bool) $fieldOption->Show,
+					'sortOrder' => (int) $fieldOption->SortOrder
+				]
+			];
+		}
+		return $js;
+	}
+}
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,32 @@
+{
+	"name": "iqnection-modules/formbuilder",
+	"description": "SilverStripe Form Builder",
+	"type": "silverstripe-vendormodule",
+	"keywords": ["iqnection","forms"],
+	"license": "BSD-3-Clause",
+	"authors": [
+		{
+			"name": "IQnection",
+            "homepage": "https://www.iqnection.com"
+		}
+	],
+	"require": {
+		"silverstripe/framework": "^4.0",
+		"undefinedoffset/sortablegridfield": "*",
+		"symbiote/silverstripe-gridfieldextensions": "^3",
+		"iqnection-themes/mysite": "^2",
+		"iqnection-pages/basepages":"^2.0",
+		"jinjie/ss4-duplicate-dataobject": "*"
+	},
+	"extra": {
+		"expose": [
+			"css",
+			"javascript"
+		]
+	},
+	"autoload": {
+		"psr-4": {
+			"IQnection\\FormBuilder\\": "app/src/"
+		}
+	}
+}
