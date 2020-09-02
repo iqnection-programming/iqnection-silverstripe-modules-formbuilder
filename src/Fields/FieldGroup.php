@@ -55,7 +55,7 @@ class FieldGroup extends Field
 		return $fields;
 	}
 	
-	public function getBaseField($validator = null)
+	public function getBaseField(&$validator = null)
 	{
 		$fieldGroup = Forms\FieldGroup::create($this->Name.'_group', $this->generateFormFields($validator));
 		$fieldGroup->setTitle($this->Name);

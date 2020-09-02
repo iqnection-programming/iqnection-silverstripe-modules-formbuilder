@@ -55,7 +55,7 @@ class RadioFieldSet extends Field
 		return $classes;
 	}
 	
-	public function getBaseField($validator = null)
+	public function getBaseField(&$validator = null)
 	{
 		$selectedDefault = $this->Options()->Filter('DefaultSelected',1)->First();
 		$field = Forms\OptionSetField::create($this->getFrontendFieldName());

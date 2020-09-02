@@ -53,7 +53,7 @@ class SendEmailFormAction extends FormAction
 	
 	public function getAvailableEmailFields()
 	{
-		$emailFieldIDs = [];
+		$emailFieldIDs = [0];
 		foreach($this->FormBuilder()->DataFields() as $dataField)
 		{
 			if ($dataField instanceof EmailField)
@@ -61,7 +61,7 @@ class SendEmailFormAction extends FormAction
 				$emailFieldIDs[] = $dataField->ID;
 			}
 		}
-		return EmailField::get()->byIDs($emailFieldIDs);
+		return EmailField::get()->Filter('ID',$emailFieldIDs);
 	}
 	
 	public function validate()

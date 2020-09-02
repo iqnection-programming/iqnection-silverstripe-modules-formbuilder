@@ -2,6 +2,28 @@
 	"use strict";
 	window._formBuilderRules = window._formBuilderRules || [];
 	
+	/* 	Stores additional action callbacks not declared in original FormBuilder object
+		to add callbacks, copy the below line into your javascript file
+		then extend the object
+		$.extend(window._formBuilderActions, {
+			myAction: function({the action data} actionData, {the result of the condition check} result) {
+				// do something here
+			}
+		});
+	*/
+	window._formBuilderActions = window._formBuilderActions || {};
+	
+	/* 	Stores additional state callbacks not declared in original FormBuilder object
+		to add callbacks, copy the below line into your javascript file
+		then extend the object
+		$.extend(window._formBuilderStates, {
+			myStateCheck: function({the condition data} condition) {
+				// do something here, must return either true or false
+			}
+		});
+	*/
+	window._formBuilderStates = window._formBuilderStates || {};
+	
 	$.validator.addMethod("minSelections", function(values, element, params) {
 		return values.length >= params;
 	}, $.validator.format("Please select at least {0} options"));
@@ -11,7 +33,6 @@
 	}, $.validator.format("Please select no more than {0} options"));
 	
 	window.FormBuilder = function(rulesData) {
-		console.log('rulesData', rulesData);
 		$.extend(this, {
 			rulesData: rulesData,
 			fieldActions: [],
@@ -107,6 +128,10 @@
 						if (!this[stateCallback](conditions[c])) {
 							return false;
 						}
+					} else if (window._formBuilderStates[stateCallback] !== undefined) {
+						if (window._formBuilderStates[stateCallback](conditions[c])) {
+							return false;
+						}
 					} else if (window[stateCallback] !== undefined) {
 						if (window[stateCallback](conditions[c])) {
 							return false;
@@ -126,6 +151,8 @@
 					actionCallbackName = actionData.callback;
 					if (typeof this[actionCallbackName] === 'function') {
 						this[actionCallbackName](actionData, conditionResult);
+					} else if (typeof window._formBuilderActions[actionCallbackName] === 'function') {
+						window._formBuilderActions[actionCallbackName](actionData, conditionResult);
 					} else if (typeof window[actionCallbackName] === 'function') {
 						window[actionCallbackName](actionData, conditionResult);
 					} else {
@@ -169,7 +196,6 @@
 				if (!result) {
 					return this.actionHideField(actionData, !result);
 				}
-console.log('Showing field', actionData);
 				return this._getFieldContainer(actionData.selector).show();
 			},
 			// hides a field if the result is true
@@ -177,7 +203,6 @@ console.log('Showing field', actionData);
 				if (!result) {
 					return this.actionShowField(actionData, !result);
 				}
-console.log('Hiding field', actionData);
 				$(actionData.selector).prop('checked', false);
 				return this._getFieldContainer(actionData.selector).hide();
 			},
@@ -187,7 +212,6 @@ console.log('Hiding field', actionData);
 				if (!result) {
 					return this.actionHideFieldOption(actionData, !result);
 				}
-console.log('Showing field option', actionData);
 				var $target = $(actionData.fieldSelector);
 				if ($target.length) {
 					console.warn('Action "actionShowFieldOption" called when option is already shown');
@@ -238,7 +262,6 @@ console.log('Showing field option', actionData);
 				if (!result) {
 					return this.actionShowFieldOption(actionData, !result);
 				}
-console.log('Hiding field option', actionData);
 				var $target = this._getFieldContainer(actionData.fieldSelector);
 				if (!$target.length) {
 					console.warn('Form Builder action to hide field option, but field container is not found', actionData);

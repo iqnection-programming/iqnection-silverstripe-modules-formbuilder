@@ -9,6 +9,7 @@ use IQnection\FormBuilder\Extensions\SelectField;
 use IQnection\FormBuilder\Shortcode\ShortcodeParser;
 use IQnection\FormBuilder\Control\FormHandler;
 use SilverStripe\Control\Controller;
+use SilverStripe\Control\HTTPResponse;
 use SilverStripe\Core\Injector\Injector;
 use SilverStripe\View\Requirements;
 use IQnection\FormBuilder\Forms\Validator;
@@ -176,11 +177,8 @@ $fields->addFieldToTab('Root.FieldActions', Forms\LiteralField::create('_validat
 			$this->_form->FormBuilder = $this;
 			
 			Requirements::css('iqnection-modules/formbuilder:css/formbuilder.css');
-			if ($controller instanceof Controller) 
-			{
-				Requirements::javascript('themes/mysite/javascript/jquery.validate.nospam.js');
-				Requirements::javascript('themes/mysite/javascript/additional-methods.js');
-			}
+			Requirements::javascript('themes/mysite/javascript/jquery.validate.nospam.js');
+			Requirements::javascript('themes/mysite/javascript/additional-methods.js');
 			Requirements::customScript($this->getFrontEndCustomScript(),'formbuilder-'.$this->ID);
 			Requirements::javascript('iqnection-modules/formbuilder:javascript/formbuilder.js');
 			
@@ -328,6 +326,15 @@ window._formBuilderRules.push(".json_encode($this->getFrontEndJS()).");";
 		$this->Title = 'Copy of '.$original->Title;
 	}
 	
+	public function processFormData(&$data, $form, $request, &$response)
+	{
+		// if we've made it this far, then validation has passed
+		foreach($this->DataFields() as $dataField)
+		{
+			$dataField->invokeWithExtensions('processFormData',$data, $form, $request, $response);
+		}
+	}
+	
 	public function createSubmission($data, $form)
 	{
 		$submission = Submission::create();
@@ -376,8 +383,16 @@ window._formBuilderRules.push(".json_encode($this->getFrontEndJS()).");";
 		{
 			if ($action->hasMethod($event))
 			{
-				$action->{$event}($form, $data, $submission);
+				$result = $action->{$event}($form, $data, $submission);
+				if ( ($result instanceof HTTPResponse) && ($result->isFinished()) )
+				{
+					return $result;
+				}
 			}
+		}
+		foreach($this->DataFields() as $dataField)
+		{
+			$dataField->invokeWithExtensions('handleEvent', $event, $form, $data, $submission);
 		}
 	}
 }

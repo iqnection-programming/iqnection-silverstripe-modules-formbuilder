@@ -49,6 +49,8 @@ class FieldAction extends DataObject
 		'Explain' => 'HTMLFragment'
 	];
 	
+	private static $allowed_field_types;
+	
 	public function getCMSFields()
 	{
 		$fields = parent::getCMSFields();
@@ -129,6 +131,32 @@ class FieldAction extends DataObject
 		}
 $fields->addFieldToTab('Root.Validation', Forms\LiteralField::create('_validation', '<div style="width:100%;overflow:scroll;"><pre><xmp>'.print_r(json_encode($this->getActionData(), JSON_PRETTY_PRINT),1).'</xmp></pre></div>'));
 		return $fields;
+	}
+	
+	public function isFieldTypeAllowed($fieldType)
+	{
+		if (is_object($fieldType))
+		{
+			$fieldType = get_class($fieldType);
+		}
+		$allowedTypes = $this->Config()->get('allowed_field_types');
+		if (is_array($allowedTypes))
+		{
+			if (in_array($fieldType, $allowedTypes))
+			{
+				return true;
+			}
+			// see if an extension was declared
+			foreach($allowedTypes as $allowedType)
+			{
+				if ( (class_exists($allowedType)) && ($fieldType::has_extension($allowedType)) )
+				{
+					return true;
+				}
+			}
+			return false;
+		}
+		return true;
 	}
 	
 	public function getTitle()

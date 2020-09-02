@@ -34,7 +34,14 @@ class FormHandler extends Extension
 	public function handleForm($data, $form)
 	{
 		$formBuilder = $form->FormBuilder;
-			
+		
+		$response = $this->owner->getResponse();
+		$formBuilder->processFormData($data, $form, $this->owner->getRequest(), $response);
+		if ($response->isFinished())
+		{
+			return response;
+		}
+		
 		$submission = $formBuilder->createSubmission($data, $form);
 		$submission->PageID = $this->owner->ID;
 		$submission->write();

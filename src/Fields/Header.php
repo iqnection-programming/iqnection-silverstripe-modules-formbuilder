@@ -47,7 +47,7 @@ class Header extends Field
 		return $result;
 	}
 	
-	public function getBaseField($validator = null)
+	public function getBaseField(&$validator = null)
 	{
 		$field = Forms\HeaderField::create($this->getFrontendFieldName(), $this->Content, substr($this->Type, -1, 1));
 		return $field;

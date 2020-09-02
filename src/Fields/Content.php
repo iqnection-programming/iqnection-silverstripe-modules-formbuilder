@@ -36,7 +36,7 @@ class Content extends Field
 		return $result;
 	}
 	
-	public function getBaseField($validator = null)
+	public function getBaseField(&$validator = null)
 	{
 		$field = Forms\LiteralField::create($this->getFrontendFieldName(), $this->renderWith('Includes/FormBuilderContentField'));
 		return $field;

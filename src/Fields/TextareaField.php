@@ -39,7 +39,7 @@ class TextareaField extends Field
 		return $fields;
 	}
 	
-	public function getBaseField($validator = null)
+	public function getBaseField(&$validator = null)
 	{
 		$field = Forms\TextareaField::create($this->getFrontendFieldName())->setRows($this->Rows);
 		$this->invokeWithExtensions('updateBaseField', $field);

@@ -65,7 +65,7 @@ class TextField extends Field
 		return $errors;
 	}
 	
-	public function getBaseField($validator = null)
+	public function getBaseField(&$validator = null)
 	{
 		$field = Forms\TextField::create($this->getFrontendFieldName());
 		return $field;		

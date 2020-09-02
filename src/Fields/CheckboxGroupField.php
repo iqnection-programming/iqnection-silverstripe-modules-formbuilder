@@ -60,7 +60,7 @@ class CheckboxGroupField extends Field
 		return $classes;
 	}
 	
-	public function getBaseField($validator = null)
+	public function getBaseField(&$validator = null)
 	{
 		$defaults = $this->Options()->Filter('DefaultSelected',1);
 		$field = Forms\CheckboxSetField::create($this->getFrontendFieldName());

@@ -25,7 +25,7 @@ class CheckboxField extends Field
 		'UncheckedValue' => 'No'
 	];
 	
-	public function getBaseField($validator = null)
+	public function getBaseField(&$validator = null)
 	{
 		$field = Forms\CheckboxField::create($this->getFrontendFieldName());
 		if ($this->DefaultChecked)

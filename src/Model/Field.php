@@ -6,6 +6,7 @@ use SilverStripe\ORM\DataObject;
 use SilverStripe\Core\ClassInfo;
 use SilverStripe\Forms;
 use SilverStripe\Core\Convert;
+use SilverStripe\Core\Injector\Injector;
 use IQnection\FormBuilder\FormBuilder;
 use IQnection\FormBuilder\Model\FieldAction;
 use Symbiote\GridFieldExtensions\GridFieldAddNewMultiClass;
@@ -20,6 +21,8 @@ class Field extends DataObject
 {
 	private static $table_name = 'FormBuilderField';
 	private static $hide_ancestor = Field::class;
+	
+	private static $submission_value_class = SubmissionFieldValue::class;
 	
 	private static $db = [
 		'Enable' => 'Boolean',
@@ -55,7 +58,7 @@ class Field extends DataObject
 	];
 	
 	private static $default_sort = 'SortOrder ASC';
-	
+		
 //	public function CanDelete($member = null, $context = []) { return false; }
 	
 	public function getCMSFields()
@@ -77,22 +80,28 @@ class Field extends DataObject
 		$fields->addFieldToTab('Root.Settings', $fields->dataFieldByName('CssClasses')->setDescription('For Developer Use') );
 		$fields->addFieldToTab('Root.Settings', Forms\CheckboxField::create('HideByDefault','Hide this field by default'));
 		
-		if (!$this->Exists())
+		
+		$allowedFieldActions = $this->getAllowedFieldActions();
+		if (count($allowedFieldActions))
 		{
-			$fields->addFieldToTab('Root.Actions', Forms\HeaderField::create('_displayText','You can add actions after you save',2));
-		}
-		else
-		{
-			$fields->addFieldToTab('Root.Actions', Forms\HeaderField::create('_displayText','Select and add an action, then set the conditions',2));
-			$fields->addFieldToTab('Root.Actions', Forms\GridField\GridField::create(
-				'FieldActions',
-				'Field Actions',
-				$this->FieldActions(),
-				Forms\GridField\GridFieldConfig_RecordEditor::create(100)
-					->addComponent($GridFieldAddNewMultiClass = new GridFieldAddNewMultiClass())
-					->removeComponentsByType(Forms\GridField\GridFieldAddNewButton::class)
-			));
-			$GridFieldAddNewMultiClass->setTitle('Add Action');
+			if (!$this->Exists())
+			{
+				$fields->addFieldToTab('Root.Actions', Forms\HeaderField::create('_displayText','You can add actions after you save',2));
+			}
+			else
+			{
+				$fields->addFieldToTab('Root.Actions', Forms\HeaderField::create('_displayText','Select and add an action, then set the conditions',2));
+				$fields->addFieldToTab('Root.Actions', Forms\GridField\GridField::create(
+					'FieldActions',
+					'Field Actions',
+					$this->FieldActions(),
+					Forms\GridField\GridFieldConfig_RecordEditor::create(100)
+						->addComponent($GridFieldAddNewMultiClass = new GridFieldAddNewMultiClass())
+						->removeComponentsByType(Forms\GridField\GridFieldAddNewButton::class)
+				));
+				$GridFieldAddNewMultiClass->setTitle('Add Action');
+				$GridFieldAddNewMultiClass->setClasses($allowedFieldActions);
+			}
 		}
 		
 		$actionsData = [];
@@ -103,6 +112,20 @@ class Field extends DataObject
 $fields->addFieldToTab('Root.Validation', Forms\LiteralField::create('_validation', '<div style="width:100%;overflow:scroll;"><pre><xmp>'.print_r(json_encode($actionsData, JSON_PRETTY_PRINT),1).'</xmp></pre></div>'));
 
 		return $fields;
+	}
+	
+	public function getAllowedFieldActions()
+	{
+		$allowedActions = [];
+		foreach(ClassInfo::subclassesFor(FieldAction::class) as $fieldActionClass)
+		{
+			if (singleton($fieldActionClass)->isFieldTypeAllowed($this))
+			{
+				$allowedActions[] = $fieldActionClass;
+			}
+		}
+		$this->extend('updateAllowedActions', $allowedActions);
+		return $allowedActions;
 	}
 	
 	public function validate()
@@ -210,7 +233,7 @@ $fields->addFieldToTab('Root.Validation', Forms\LiteralField::create('_validatio
 		$field->FormBuilderField = $this;
 	}
 	
-	public function getBaseField($validator = null)
+	public function getBaseField(&$validator = null)
 	{
 		user_error('Method '.__FUNCTION__.' must be implemented on class '.$this->getClassName());
 	}
@@ -248,18 +271,24 @@ $fields->addFieldToTab('Root.Validation', Forms\LiteralField::create('_validatio
 	
 	public function createSubmissionFieldValue($value)
 	{
-		$submissionFieldValue = SubmissionFieldValue::create();
+		$rawValue = $value;
+		$submissionFieldValue = Injector::inst()->create($this->Config()->get('submission_value_class'));
 		$submissionFieldValue->FormBuilderFieldID = $this->ID;
 		$submissionFieldValue->SortOrder = $this->SortOrder;
 		$submissionFieldValue->Name = $this->Name;
 		$submissionFieldValue->Label = $this->Label;
 		$submissionFieldValue->Required = $this->Required;
-		$submissionFieldValue->RawValue = serialize($value);
-		$value = $this->prepareSubmittedValue($value);
-		$submissionFieldValue->Value = $value;
-		$this->extend('updateSubmissionFieldValue', $submissionFieldValue);
+		$submissionFieldValue->RawValue = serialize($rawValue);
+		$submissionFieldValue->Value = $this->prepareSubmittedValue($rawValue);
+		$this->extend('updateSubmissionFieldValue', $submissionFieldValue, $rawValue);
 		return $submissionFieldValue;
 	}
+	
+	public function processFormData(&$data, $form, $request, &$response)
+	{ }
+	
+	public function handleEvent($event, $form, $data, $submission)
+	{ }
 	
 	/**
 	 * builds an array of rules and/or messages to provide to jQuery.validate for building validation
@@ -291,18 +320,7 @@ $fields->addFieldToTab('Root.Validation', Forms\LiteralField::create('_validatio
 	{
 		return $this->getFrontendFieldName();
 	}
-	
-//	public function getActionsJs()
-//	{
-//		$actions = [];
-//		foreach($this->FieldActions() as $fieldAction)
-//		{
-//			$actions[] = $fieldAction->getFrontEndJs();
-//		}
-//		$this->extend('updateActionsJs', $actions);
-//		return $actions;
-//	}
-	
+		
 	public function getjQuerySelector()
 	{
 		$selector = '[name="'.$this->getFrontendFieldName().'"]';

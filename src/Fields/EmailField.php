@@ -14,7 +14,7 @@ class EmailField extends Field
 		\IQnection\FormBuilder\Extensions\InputField::class
 	];
 	
-	public function getBaseField($validator = null)
+	public function getBaseField(&$validator = null)
 	{
 		$field = Forms\EmailField::create($this->getFrontendFieldName());
 		return $field;		

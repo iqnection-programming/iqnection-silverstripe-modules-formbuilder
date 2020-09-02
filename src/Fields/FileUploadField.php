@@ -14,7 +14,7 @@ class FileUploadField extends Field
 		\IQnection\FormBuilder\Extensions\UploadField::class
 	];
 
-	public function getBaseField($validator = null)
+	public function getBaseField(&$validator = null)
 	{
 		$field = Forms\FileField::create($this->getFrontendFieldName());
 		return $field;		
