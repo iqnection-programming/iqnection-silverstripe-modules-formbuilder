@@ -21,46 +21,47 @@ class Field extends DataObject
 {
 	private static $table_name = 'FormBuilderField';
 	private static $hide_ancestor = Field::class;
-	
+
 	private static $submission_value_class = SubmissionFieldValue::class;
-	
+
 	private static $db = [
 		'Enable' => 'Boolean',
 		'HideByDefault' => 'Boolean',
 		'SortOrder' => 'Int',
 		'Name' => 'Varchar(255)',
 		'CssClasses' => 'Varchar(255)',
-		'ShowInSubmissionsTable' => 'Boolean'
+		'ShowInSubmissionsTable' => 'Boolean',
 	];
-	
+
 	private static $has_one = [
 		'Container' => DataObject::class
 	];
-	
+
 	private static $has_many = [
 		'SubmissionValues' => SubmissionFieldValue::class,
 		'FieldActions' => FieldAction::class.'.Parent'
 	];
-	
+
 	private static $belongs_many_many = [
 		'OwnerFieldActions' => FieldAction::class.'.Children',
 		'OwnerSelectionActions' => SelectFieldOptionAction::class.'.Children'
 	];
-	
+
 	private static $defaults = [
 		'Enable' => true
 	];
-	
+
 	private static $summary_fields = [
-		'Name' => 'Name',
+		'getGridFieldName' => 'Name',
 		'FieldType' => 'Type',
-		'Enable.Nice' => 'Displayed'
+		'EnableDisplay' => 'Enabled',
+		'ShowInSubmissionsTableDisplay' => 'Submissions Table'
 	];
-	
+
 	private static $default_sort = 'SortOrder ASC';
-		
+
 //	public function CanDelete($member = null, $context = []) { return false; }
-	
+
 	public function getCMSFields()
 	{
 		$fields = parent::getCMSFields();
@@ -79,8 +80,8 @@ class Field extends DataObject
 		$fields->addFieldToTab('Root.Settings', Forms\CheckboxField::create('ShowInSubmissionsTable','Display this field in the submissions table') );
 		$fields->addFieldToTab('Root.Settings', $fields->dataFieldByName('CssClasses')->setDescription('For Developer Use') );
 		$fields->addFieldToTab('Root.Settings', Forms\CheckboxField::create('HideByDefault','Hide this field by default'));
-		
-		
+
+
 		$allowedFieldActions = $this->getAllowedFieldActions();
 		if (count($allowedFieldActions))
 		{
@@ -103,7 +104,7 @@ class Field extends DataObject
 				$GridFieldAddNewMultiClass->setClasses($allowedFieldActions);
 			}
 		}
-		
+
 		$actionsData = [];
 		foreach($this->FieldActions() as $fieldAction)
 		{
@@ -113,7 +114,24 @@ $fields->addFieldToTab('Root.Validation', Forms\LiteralField::create('_validatio
 
 		return $fields;
 	}
-	
+
+	public function EnableDisplay()
+	{
+		return $this->dbObject('Enable')->Nice();
+	}
+
+	public function ShowInSubmissionsTableDisplay()
+	{
+		return $this->dbObject('ShowInSubmissionsTable')->Nice();
+	}
+
+	public function getGridFieldName()
+	{
+		$name = $this->Name;
+		$this->extend('updateGridFieldName', $name);
+		return $name;
+	}
+
 	public function getAllowedFieldActions()
 	{
 		$allowedActions = [];
@@ -127,7 +145,7 @@ $fields->addFieldToTab('Root.Validation', Forms\LiteralField::create('_validatio
 		$this->extend('updateAllowedActions', $allowedActions);
 		return $allowedActions;
 	}
-	
+
 	public function validate()
 	{
 		$result = parent::validate();
@@ -143,36 +161,58 @@ $fields->addFieldToTab('Root.Validation', Forms\LiteralField::create('_validatio
 		}
 		return $result;
 	}
-	
+
+	public function hasActions()
+	{
+		if ($this->FieldActions()->Count())
+		{
+			return true;
+		}
+		$this->extend('updateHasActions', $hasActions);
+		return $hasActions;
+	}
+
 	public function Explain()
 	{
-		$text = '<div style="padding-left:10px;"><strong>'.$this->Name.'</strong> ['.$this->singular_name();
+		$text = '<div><strong>'.$this->Name.'</strong><div><div>'.$this->singular_name().'</div>';
 		if ($this->HideByDefault)
 		{
-			$text .= '|Hidden';
+			$text .= '<em>(Default Hidden)</em>';
 		}
-		$text .= ']';
-		foreach($this->FieldActions() as $fieldAction)
+		if ($this->FieldActions()->Count())
 		{
-			$text .= $fieldAction->Explain();
+			$text .= '<ul>';
+			foreach($this->FieldActions() as $fieldAction)
+			{
+				$text .= '<li>'.$fieldAction->Explain().'</li>';
+			}
+			$text .= '</ul>';
 		}
 		$this->extend('updateExplanation', $text);
-		$text .= '</div>';
+		$text .= '<hr>';
 		return FieldType\DBField::create_field(FieldType\DBHTMLVarchar::class, $text);
 	}
-	
+
 	public function FieldType()
 	{
-		return $this->singular_name();
+		$fieldType = $this->singular_name();
+		$this->extend('updateFieldTypeName', $fieldType);
+		return $fieldType;
 	}
-	
+
 	public function getBetterButtonsActions()
 	{
 		$actions = parent::getBetterButtonsActions();
 		$actions->removeByName(['action_doSaveAndAdd']);
 		return $actions;
 	}
-	
+
+	public function onAfterWrite()
+	{
+		parent::onAfterWrite();
+		$this->FormBuilder()->clearJsCache();
+	}
+
 	public function FormBuilder()
 	{
 		if ( ($parent = $this->Container()) && ($parent->Exists()) )
@@ -188,7 +228,7 @@ $fields->addFieldToTab('Root.Validation', Forms\LiteralField::create('_validatio
 		}
 		return FormBuilder::singleton();
 	}
-	
+
 	public function getBetterButtonsUtils()
     {
         $buttons = parent::getBetterButtonsUtils();
@@ -197,22 +237,22 @@ $fields->addFieldToTab('Root.Validation', Forms\LiteralField::create('_validatio
 		]);
         return $buttons;
     }
-	
+
 	public function getFrontendFieldName()
 	{
 		$name = 'FormBuilderField_'.$this->ID;
 		$this->extend('updateFrontendFieldName',$name);
 		return $name;
 	}
-	
+
 	public function getFrontendFieldID()
 	{
 		$htmlid = $this->FormBuilder()->getFormHTMLID().'_'.$this->getFrontendFieldName();
 		return $htmlid;
 	}
-	
-	public function ExtraCssClasses($as_string = false) 
-	{	
+
+	public function ExtraCssClasses($as_string = false)
+	{
 		$extraClasses = explode(',',$this->CssClasses);
 		$extraClasses[] = 'form-builder-'.strtolower(Convert::raw2htmlid(ClassInfo::shortName($this->getClassName())));
 		foreach($this->invokeWithExtensions('updateExtraCssClasses',$extraClasses) as $update)
@@ -222,7 +262,7 @@ $fields->addFieldToTab('Root.Validation', Forms\LiteralField::create('_validatio
 		$extraClasses = array_unique($extraClasses);
 		return $as_string ? implode(' ',$extraClasses) : $extraClasses;
 	}
-	
+
 	public function updateBaseField($field, $validator = null)
 	{
 		$extraClasses = $this->ExtraCssClasses();
@@ -232,17 +272,17 @@ $fields->addFieldToTab('Root.Validation', Forms\LiteralField::create('_validatio
 		}
 		$field->FormBuilderField = $this;
 	}
-	
+
 	public function getBaseField(&$validator = null)
 	{
 		user_error('Method '.__FUNCTION__.' must be implemented on class '.$this->getClassName());
 	}
-	
+
 	public function scaffoldSearchFields($params = null)
 	{
 		return Forms\FieldList::create();
 	}
-	
+
 	protected $_fieldTypes = [];
 	public function getFieldTypes()
 	{
@@ -256,19 +296,19 @@ $fields->addFieldToTab('Root.Validation', Forms\LiteralField::create('_validatio
 		}
 		return $this->_fieldTypes;
 	}
-	
-	public function validateFormValue($value) 
-	{ 
+
+	public function validateFormValue($value)
+	{
 		$errors = [];
 		return $errors;
 	}
-	
+
 	public function prepareSubmittedValue($value)
 	{
 		$this->extend('updatePreparedSubmittedValue',$value);
 		return $value;
 	}
-	
+
 	public function createSubmissionFieldValue($value)
 	{
 		$rawValue = $value;
@@ -283,16 +323,16 @@ $fields->addFieldToTab('Root.Validation', Forms\LiteralField::create('_validatio
 		$this->extend('updateSubmissionFieldValue', $submissionFieldValue, $rawValue);
 		return $submissionFieldValue;
 	}
-	
+
 	public function processFormData(&$data, $form, $request, &$response)
 	{ }
-	
+
 	public function handleEvent($event, $form, $data, $submission)
 	{ }
-	
+
 	/**
 	 * builds an array of rules and/or messages to provide to jQuery.validate for building validation
-	 * values of "rule" and "message" should be formated with keys and values 
+	 * values of "rule" and "message" should be formated with keys and values
 	 * that are acceptable to pass to jQuery.validate as a JSON object
 	 * @returns array
 	 */
@@ -302,10 +342,10 @@ $fields->addFieldToTab('Root.Validation', Forms\LiteralField::create('_validatio
 		$this->extend('updateFieldJsValidation', $rules);
 		return $rules;
 	}
-	
+
 	/**
 	 * builds an array of messages to provide to jQuery.validate for building validation
-	 * values of "messages" should be formated with keys and values 
+	 * values of "messages" should be formated with keys and values
 	 * that are acceptable to pass to jQuery.validate as a JSON object
 	 * @returns array
 	 */
@@ -315,12 +355,12 @@ $fields->addFieldToTab('Root.Validation', Forms\LiteralField::create('_validatio
 		$this->extend('updateFieldJsMessages', $messages);
 		return $messages;
 	}
-	
+
 	public function getJavaScriptValidatorName()
 	{
 		return $this->getFrontendFieldName();
 	}
-		
+
 	public function getjQuerySelector()
 	{
 		$selector = '[name="'.$this->getFrontendFieldName().'"]';

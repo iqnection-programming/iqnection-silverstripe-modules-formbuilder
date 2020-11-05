@@ -6,6 +6,7 @@ use IQnection\FormBuilder\Extensions\FieldGroupExtension;
 use IQnection\FormBuilder\Model\Field;
 use Symbiote\GridFieldExtensions\GridFieldAddNewMultiClass;
 use SilverStripe\Forms;
+use SilverStripe\ORM\FieldType;
 
 class FieldGroup extends Field
 {
@@ -13,11 +14,11 @@ class FieldGroup extends Field
 	private static $singular_name = 'Field Group';
 	private static $plural_name = 'Field Groups';
 	private static $max_fields = 3;
-	
+
 	private static $extensions = [
 		FieldGroupExtension::class,
 	];
-	
+
 	public function getCMSFields()
 	{
 		$fields = parent::getCMSFields();
@@ -50,11 +51,11 @@ class FieldGroup extends Field
 				}
 				$GridFieldAddNewMultiClass->setClasses($classes);
 			}
-			
+
 		}
 		return $fields;
 	}
-	
+
 	public function getBaseField(&$validator = null)
 	{
 		$fieldGroup = Forms\FieldGroup::create($this->Name.'_group', $this->generateFormFields($validator));
@@ -65,7 +66,37 @@ class FieldGroup extends Field
 			$field->setTitle('');
 		}
 		$fieldGroup->addExtraClass('stacked col'.$fieldGroup->FieldList()->Count());
-		return $fieldGroup;		
+		return $fieldGroup;
+	}
+
+	public function EnableDisplay()
+	{
+		$fields = [];
+		foreach($this->Fields() as $field)
+		{
+			$fields[] = $field->Name.': '.$field->dbObject('Enable')->Nice();
+		}
+		return FieldType\DBField::create_field(FieldType\DBHTMLVarchar::class, implode("<br />", $fields));
+	}
+
+	public function FieldType()
+	{
+		$fields = [];
+		foreach($this->Fields() as $field)
+		{
+			$fields[] = $field->Name.': '.$field->Name;
+		}
+		return FieldType\DBField::create_field(FieldType\DBHTMLVarchar::class, implode("<br />", $fields));
+	}
+
+	public function ShowInSubmissionsTableDisplay()
+	{
+		$fields = [];
+		foreach($this->Fields() as $field)
+		{
+			$fields[] = $field->Name.': '.$field->dbObject('ShowInSubmissionsTable')->Nice();
+		}
+		return FieldType\DBField::create_field(FieldType\DBHTMLVarchar::class, implode("<br />", $fields));
 	}
 
 }

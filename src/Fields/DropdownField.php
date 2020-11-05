@@ -22,6 +22,7 @@ class DropdownField extends Field
 	public function getCMSFields()
 	{
 		$fields = parent::getCMSFields();
+		$fields->dataFieldByName('EmptyString')->setAttribute('placeholder','ex. --- Select ---');
 		return $fields;
 	}
 	

@@ -14,26 +14,26 @@ use SwiftDevLabs\DuplicateDataObject\Forms\GridField\GridFieldDuplicateAction;
 use IQnection\FormBuilder\Extensions\Cacheable;
 
 class FieldGroupExtension extends DataExtension
-{	
+{
 	private static $extensions = [
 		Cacheable::class
 	];
-	
+
 	private static $has_many = [
 		'Fields' => Field::class
 	];
-	
+
 	private static $cascade_duplicates = [
 		'Fields'
 	];
-	
+
 	private static $cascade_caches = [
 		'Fields'
 	];
-	
+
 	private static $max_fields;
 	private static $hide_field_types = [];
-	
+
 	public function updateCMSFields($fields)
 	{
 		$fields->removeByName([
@@ -60,7 +60,7 @@ class FieldGroupExtension extends DataExtension
 		}
 		return $fields;
 	}
-	
+
 	public function updateBetterButtonsActions($actions)
 	{
 		if (!$this->owner->Exists())
@@ -69,7 +69,21 @@ class FieldGroupExtension extends DataExtension
 			$actions->fieldByName('action_save')->setTitle('Continue');
 		}
 	}
-	
+
+	public function updateHasActions(&$hasActions)
+	{
+		if (!$hasActions)
+		{
+			foreach($this->owner->Fields() as $field)
+			{
+				if ($hasActions = $field->hasActions())
+				{
+					return $hasActions;
+				}
+			}
+		}
+	}
+
 	public function updateExplanation(&$text)
 	{
 		foreach($this->owner->Fields() as $field)
@@ -77,7 +91,7 @@ class FieldGroupExtension extends DataExtension
 			$text .= $field->Explain();
 		}
 	}
-	
+
 	public function CanAddField()
 	{
 		if ($max_fields = $this->owner->Config()->get('max_fields'))
@@ -86,13 +100,13 @@ class FieldGroupExtension extends DataExtension
 		}
 		return true;
 	}
-	
+
 	/**
 	 * returns all data fields owned by this group or any child groups
 	 */
 	public function DataFields()
 	{
-		$fieldIDs = [];
+		$fieldIDs = [0];
 		foreach($this->owner->Fields() as $field)
 		{
 			if ($field->hasExtension(FieldGroupExtension::class))
@@ -104,20 +118,16 @@ class FieldGroupExtension extends DataExtension
 				$fieldIDs[] = $field->ID;
 			}
 		}
-		$dataFields = Field::get();
-		if (count($fieldIDs))
-		{
-			$dataFields = $dataFields->byIDs($fieldIDs);
-		}
+		$dataFields = Field::get()->byIDs($fieldIDs);
 		return $dataFields;
 	}
-	
+
 	/**
 	 * returns all fields owned by this group or any child groups
 	 */
 	public function FieldsFlat()
 	{
-		$fieldIDs = [];
+		$fieldIDs = [0];
 		foreach($this->owner->Fields() as $field)
 		{
 			$fieldIDs[] = $field->ID;
@@ -126,14 +136,10 @@ class FieldGroupExtension extends DataExtension
 				$fieldIDs = array_merge($fieldIDs, $field->FieldsFlat()->Column('ID'));
 			}
 		}
-		$Fields = Field::get();
-		if (count($fieldIDs))
-		{
-			$Fields = $Fields->byIDs($fieldIDs);
-		}
+		$Fields = Field::get()->byIDs($fieldIDs);
 		return $Fields;
 	}
-	
+
 	public function generateFormFields($validator = null)
 	{
 		$fields = [];

@@ -9,6 +9,8 @@ SilverStripe\Core\Injector\Injector:
     factory: SilverStripe\Core\Cache\CacheFactory
     constructor:
       namespace: "formbuilder"
-
+SilverStripe\Control\Director:
+  rules:
+    '_form-builder-preview': IQnection\FormBuilder\Control\FormBuilderPreview
 
  

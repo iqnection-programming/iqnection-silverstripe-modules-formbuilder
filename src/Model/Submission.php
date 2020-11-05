@@ -13,6 +13,7 @@ class Submission extends DataObject
 	
 	private static $db = [
 		'FormData' => 'Text',
+		'PageName' => 'Varchar(255)',
 	];
 	
 	private static $has_many = [
@@ -41,6 +42,16 @@ class Submission extends DataObject
 		return false;
 	}
 	
+	public function CanView($member = null, $context = [])
+	{
+		return true;
+	}
+	
+	public function CanDelete($member = null, $context = [])
+	{
+		return true;
+	}
+	
 	public function getCMSFields()
 	{
 		$fields = parent::getCMSFields();
@@ -50,13 +61,26 @@ class Submission extends DataObject
 			'FormBuilderID',
 			'SubmissionFieldValues'
 		]);
-		$fields->addFieldToTab('Root.Main', Forms\ReadonlyField::create('Created','Submitted') );
-		$fields->addFieldToTab('Root.Main', Forms\ReadonlyField::create('_Page','Page')->setValue($this->Page()->Title) );
+		$fields->addFieldToTab('Root.Main', Forms\ReadonlyField::create('Created','Submitted At') );
+		$fields->addFieldToTab('Root.Main', Forms\ReadonlyField::create('PageName','Page Name') );
+
 		foreach($this->SubmissionFieldValues() as $submissionValue)
 		{
 			$fields->addFieldToTab('Root.Main', $submissionValue->getReadonlyField());
 		}
+		$fields->addFieldToTab('Root.Cache', Forms\LiteralField::create('cachedSubmission', '<div style="max-width:100%;"><pre><xmp>'.print_r(unserialize($this->FormData),1).'</xmp></pre></div>'));
 		return $fields;
+	}
+	
+	public function onBeforeWrite()
+	{
+		parent::onBeforeWrite();
+		if ( ($this->Page()->Exists()) && (empty($this->PageName)) )
+		{
+			$this->PageName = (string) $this->Page()->Breadcrumbs(20, true, false, true);
+			$this->PageName = trim($this->PageName);
+			$this->forceChange(true);
+		}
 	}
 	
 	public function getTitle()
@@ -72,7 +96,7 @@ class Submission extends DataObject
 	
 	public function relField($field)
 	{
-		if ($formData = unserialize($this->FormData))
+		if ($formData = $this->RawFormData())
 		{
 			if (array_key_exists($field, $formData))
 			{
@@ -80,6 +104,16 @@ class Submission extends DataObject
 			}
 		}
 		return parent::relField($field);
+	}
+	
+	protected $_formData;
+	public function RawFormData()
+	{
+		if (is_null($this->_formData))
+		{
+			$this->_formData = unserialize($this->FormData);
+		}
+		return $this->_formData;
 	}
 }
 

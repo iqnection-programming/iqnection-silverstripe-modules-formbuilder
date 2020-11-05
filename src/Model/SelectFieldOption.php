@@ -79,19 +79,39 @@ class SelectFieldOption extends DataObject
 		return $fields;
 	}
 	
+	public function onAfterWrite()
+	{
+		parent::onAfterWrite();
+		$this->FormBuilder()->clearJsCache();
+	}
+	
+	public function FormBuilder()
+	{
+		return $this->Field()->FormBuilder();
+	}
+	
+	public function hasActions()
+	{
+		return (bool) $this->SelectionActions()->Count();
+	}
+	
 	public function Explain()
 	{
-		$text = '<div style="padding-left:10px;">Option: '.$this->getOptionLabel();
+		$text = '<div>Option: <strong>'.$this->getOptionLabel().'</strong></div>';
 		if ($this->HideByDefault)
 		{
-			$text .= '|Hidden';
+			$text .= '<em>(Default Hidden)</em>';
 		}
-		foreach($this->SelectionActions() as $SelectionAction)
+		if ($this->SelectionActions()->Count())
 		{
-			$text .= $SelectionAction->Explain();
+			$text .= '<ul>';
+			foreach($this->SelectionActions() as $SelectionAction)
+			{
+				$text .= '<li>'.$SelectionAction->Explain().'</li>';
+			}
+			$text .= '</ul>';
 		}
 		$this->extend('updateExplanation', $text);
-		$text .= '</div>';
 		return FieldType\DBField::create_field(FieldType\DBHTMLVarchar::class, $text);
 	}
 	

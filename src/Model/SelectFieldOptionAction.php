@@ -88,13 +88,18 @@ class SelectFieldOptionAction extends DataObject
 					'callback' => function($record, $col, $grid) {
 						if ($record->hasExtension(SelectField::class))
 						{
+							$source = [];
+							foreach($record->Options() as $option)
+							{
+								$source[$option->ID] = $option->getOptionLabel();
+							}
 							// is the field hidden by default
 							return Forms\SelectionGroup::create('State', [
 								Forms\SelectionGroup_Item::create('Has Value', null, 'Any selection'),
 								Forms\SelectionGroup_Item::create(
 									'Match', 
 									Forms\CheckboxSetField::create('_ChildSelections','Options')
-										->setSource($record->Options()->map('ID','Value'))
+										->setSource($source)
 										->setDefaultItems($this->ChildSelections()->Column('ID')),
 									'Specified selected (when the user chooses any below selected values, this action will be triggered)'),
 								Forms\SelectionGroup_Item::create('Is Empty', null, 'No selection'),
@@ -123,6 +128,11 @@ class SelectFieldOptionAction extends DataObject
 		}
 $fields->addFieldToTab('Root.Validation', Forms\LiteralField::create('_validation', '<div style="width:100%;overflow:scroll;"><pre><xmp>'.print_r($this->getActionData(),1).'</xmp></pre></div>'));
 		return $fields;
+	}
+	
+	public function FormBuilder()
+	{
+		return $this->Parent()->FormBuilder();
 	}
 	
 	public function getTitle()
@@ -159,9 +169,10 @@ $fields->addFieldToTab('Root.Validation', Forms\LiteralField::create('_validatio
 			}
 			if ($remove->Count())
 			{
-				$this->ChildSelections()->remove($remove->Column('ID'));
+				$this->ChildSelections()->removeMany($remove->Column('ID'));
 			}
 		}
+		$this->FormBuilder()->clearJsCache();
 	}
 	
 	public function getBetterButtonsActions()
@@ -179,9 +190,10 @@ $fields->addFieldToTab('Root.Validation', Forms\LiteralField::create('_validatio
 	public function Explain()
 	{
 		$conditions = [];
+		$text = '<div>Action: '.$this->singular_name().'</div>';
 		foreach($this->Children() as $conditionField)
 		{
-			$condition = $this->singular_name().' if <strong>'.$conditionField->Name.'</strong>';
+			$condition = '<strong>'.$conditionField->Name.'</strong>';
 			switch($conditionField->State)
 			{
 				default:
@@ -196,7 +208,7 @@ $fields->addFieldToTab('Root.Validation', Forms\LiteralField::create('_validatio
 			$conditions[] = $condition;
 		}
 		$this->extend('updateExplanation', $conditions);
-		$text = '<div style="padding-left:10px;">'.implode('<br />',$conditions).'</div>';
+		$text .= ' - Conditions: <ul><li>'.implode('</li><li>',$conditions).'</ul>';
 		return FieldType\DBField::create_field(FieldType\DBHTMLVarchar::class, $text);
 	}
 	

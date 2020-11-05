@@ -9,6 +9,7 @@ use IQnection\FormBuilder\Extensions\SelectField;
 use IQnection\FormBuilder\Shortcode\ShortcodeParser;
 use IQnection\FormBuilder\Control\FormHandler;
 use SilverStripe\Control\Controller;
+use SilverStripe\Control\Director;
 use SilverStripe\Control\HTTPResponse;
 use SilverStripe\Core\Injector\Injector;
 use SilverStripe\View\Requirements;
@@ -18,8 +19,11 @@ use IQnection\FormBuilder\Model\Submission;
 use Symbiote\GridFieldExtensions\GridFieldAddNewMultiClass;
 use UndefinedOffset\SortableGridField\Forms\GridFieldSortableRows;
 use SwiftDevLabs\DuplicateDataObject\Forms\GridField\GridFieldDuplicateAction;
+use IQnection\FormBuilder\Control\FormBuilderPreview;
+use SilverStripe\Core\Flushable;
+use IQnection\FormBuilder\Forms\GridField\SubmissionsExportButton;
 
-class FormBuilder extends DataObject
+class FormBuilder extends DataObject implements Flushable
 {
 	private static $table_name = 'FormBuilder';
 	private static $singular_name = 'Form';
@@ -34,6 +38,7 @@ class FormBuilder extends DataObject
 		'Title' => 'Varchar(255)',
 		'SubmitText' => 'Varchar(50)',
 		'ConfirmationText' => 'HTMLText',
+		'JsValidationCache' => 'Text'
 	];
 	
 	private static $has_many = [
@@ -55,19 +60,33 @@ class FormBuilder extends DataObject
 	];
 
 	public function CanDelete($member = null, $context = []) { return false; }
-	
+
+	public static function flush()
+	{
+		if ($_GET['flush'] == 'forms')
+		{
+			foreach(FormBuilder::get() as $formBuilder)
+			{
+				$formBuilder->clearJsCache();
+			}
+		}
+	}
+
 	public function getCMSFields()
 	{
 		$fields = parent::getCMSFields();
+		$fields->removeByName(['JsValidationCache']);
 		$fields->dataFieldByName('Title')->setDescription('For internal purposes only');
 		if ($this->Exists())
 		{
 			$fields->insertBefore('Title',Forms\ReadonlyField::create('Shortcode','Shortcode')
 				->setValue(ShortcodeParser::generateShortcode($this))
-				->setDescription('Copy this short code and paste on any page where you want to display this form'));
+				->setDescription('Copy this short code and paste on any page where you want to display this form<br />
+<a href="'.FormBuilderPreview::singleton()->Link($this->ID).'" target="_blank">Preview Form</a>'));
 		}
 		if ($submissions_fg = $fields->dataFieldByName('Submissions'))
 		{
+			$submissions_fg->getConfig()->addComponent(new SubmissionsExportButton());
 			$submissions_fg->getConfig()->removeComponentsByType(Forms\GridField\GridFieldAddExistingAutocompleter::class);
 			if ($columns = $submissions_fg->getConfig()->getComponentsByType(Forms\GridField\GridFieldDataColumns::class)->First())
 			{
@@ -79,14 +98,14 @@ class FormBuilder extends DataObject
 				$columns->setDisplayFields($displayFields);
 			}
 		}
-		
+
 		if (!$this->Exists())
 		{
-			$fields->addFieldToTab('Root.Actions', Forms\HeaderField::create('_actionsWarning','You must save before adding actions'));
+			$fields->addFieldToTab('Root.Form Actions', Forms\HeaderField::create('_actionsWarning','You must save before adding actions'));
 		}
 		else
 		{
-			$fields->addFieldToTab('Root.Actions', Forms\GridField\GridField::create(
+			$fields->addFieldToTab('Root.Form Actions', Forms\GridField\GridField::create(
 				'Actions',
 				'Actions',
 				$this->Actions(),
@@ -102,14 +121,21 @@ class FormBuilder extends DataObject
 		$fieldAction_texts = [];
 		foreach($this->Fields() as $formBuilderField)
 		{
-			$fieldAction_texts[] = $formBuilderField->Explain();
+			if ($formBuilderField->hasActions())
+			{
+				$fieldAction_texts[] = $formBuilderField->Explain();
+			}
+		}
+		if ($ConfirmationTextField = $fields->dataFieldByName('ConfirmationText'))
+		{
+			$ConfirmationTextField->addExtraClass('stacked');
 		}
 $fields->addFieldToTab('Root.FieldActions', Forms\LiteralField::create('_explain', '<div style="width:100%;overflow:scroll;"><div style="padding-bottom:6px;border-bottom:1px solid #999;">'.implode('</div><div style="padding-bottom:6px;;border-bottom:1px solid #999;">',$fieldAction_texts).'</div></div>'));
 $fields->addFieldToTab('Root.FieldActions', Forms\LiteralField::create('_validation', '<div style="width:100%;overflow:scroll;"><pre><xmp>'.print_r(json_encode($this->getFrontEndJS(),JSON_PRETTY_PRINT),1).'</xmp></pre></div>'));
 
 		return $fields;
 	}
-	
+
 	public function validate()
 	{
 		$result = parent::validate();
@@ -123,7 +149,7 @@ $fields->addFieldToTab('Root.FieldActions', Forms\LiteralField::create('_validat
 		}
 		return $result;
 	}
-	
+
 	public function onBeforeWrite()
 	{
 		parent::onBeforeWrite();
@@ -132,7 +158,17 @@ $fields->addFieldToTab('Root.FieldActions', Forms\LiteralField::create('_validat
 			$this->SubmitText = $this->Config()->get('default_submit_text');
 		}
 	}
-	
+
+	public function clearJsCache()
+	{
+		if ( (!empty($this->JsValidationCache)) && ($this->Exists()) )
+		{
+			$this->JsValidationCache = null;
+			$this->write();
+		}
+		return $this;
+	}
+
 	public function getFormName()
 	{
 		$name = 'FormBuilder';
@@ -158,12 +194,11 @@ $fields->addFieldToTab('Root.FieldActions', Forms\LiteralField::create('_validat
 			}
 
 			$validator = Validator::create();
-
 			$fields = Forms\FieldList::create($this->generateFormFields($validator));
 			$actions = Forms\FieldList::create(
 				Forms\FormAction::create('handleForm',$this->SubmitText ? $this->SubmitText : $this->Config()->get('default_submit_text'))
-			);	
-			
+			);
+
 			$this->_form = Forms\Form::create(
 				$controller,
 				$this->getFormName(),
@@ -175,13 +210,13 @@ $fields->addFieldToTab('Root.FieldActions', Forms\LiteralField::create('_validat
 			->addExtraClass('form-builder')
 			->setHTMLID($this->getFormHTMLID());
 			$this->_form->FormBuilder = $this;
-			
+
 			Requirements::css('iqnection-modules/formbuilder:css/formbuilder.css');
 			Requirements::javascript('themes/mysite/javascript/jquery.validate.nospam.js');
 			Requirements::javascript('themes/mysite/javascript/additional-methods.js');
 			Requirements::customScript($this->getFrontEndCustomScript(),'formbuilder-'.$this->ID);
 			Requirements::javascript('iqnection-modules/formbuilder:javascript/formbuilder.js');
-			
+
 			if ($controller->getRequest()->isPOST())
 			{
 				$this->_form->setSessionData($controller->getRequest()->postVars());
@@ -207,6 +242,11 @@ $fields->addFieldToTab('Root.FieldActions', Forms\LiteralField::create('_validat
 	
 	public function getFrontEndJS()
 	{
+		$cachedScript = json_decode($this->JsValidationCache,1);
+		if ( (is_array($cachedScript)) && (count($cachedScript)) && (json_last_error() == JSON_ERROR_NONE) && (!Director::isDev()) )
+		{
+			return $cachedScript;
+		}
 		$scripts = [
 			'formId' => $this->getFormHTMLID(),
 			'_id' => $this->ID,
@@ -223,7 +263,8 @@ $fields->addFieldToTab('Root.FieldActions', Forms\LiteralField::create('_validat
 			'stateCallback' => 'stateOnFormLoad',
 			'selections' => [],
 		]];
-		foreach($this->Fields() as $Field)
+		// collect all hidden fields and set with the form load action
+		foreach($this->FieldsFlat() as $Field)
 		{
 			$fieldSelector = $Field->getjQuerySelector();
 			foreach($Field->FieldActions() as $fieldAction)
@@ -245,6 +286,7 @@ $fields->addFieldToTab('Root.FieldActions', Forms\LiteralField::create('_validat
 					'conditionsHash' => 'onFormLoad'
 				];
 			}
+			// collect all selectable values for storage
 			if ($Field->hasExtension(SelectField::class))
 			{
 				foreach($Field->Options() as $fieldOption)
@@ -260,6 +302,7 @@ $fields->addFieldToTab('Root.FieldActions', Forms\LiteralField::create('_validat
 					{
 						$scripts['fieldActions'][] = $fieldOptionAction->getActionData();
 					}
+					// create the action if the option is hidden on form load
 					if ($fieldOption->HideByDefault)
 					{
 						$scripts['fieldActions'][] = [
@@ -293,6 +336,11 @@ $fields->addFieldToTab('Root.FieldActions', Forms\LiteralField::create('_validat
 			}
 		}
 		$this->extend('updateFrontEndJS', $scripts);
+		$this->JsValidationCache = json_encode($scripts);
+		if ($this->Exists())
+		{
+			$this->write();
+		}
 		return $scripts;
 	}
 	
@@ -358,7 +406,6 @@ window._formBuilderRules.push(".json_encode($this->getFrontEndJS()).");";
 				{
 					$submissionFieldValue->SubmissionID = $submission->ID;
 					$submittedValues[] = $submissionFieldValue;
-//					$submissionFieldValue->write();
 					$submitCacheData[$formBuilderField->Name] = $submissionFieldValue->Value;
 				}
 			} catch (\Exception $e) {

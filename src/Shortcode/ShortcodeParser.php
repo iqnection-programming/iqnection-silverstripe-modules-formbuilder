@@ -34,8 +34,8 @@ class ShortcodeParser implements ShortcodeHandler
 	{
 		$params = [
 			'formbuilder',
-//			'title="'.$form->Title.'"',
-			'id='.$FormBuilder->ID
+			'id='.$FormBuilder->ID,
+			'title="'.$FormBuilder->Title.'"'
 		];
 		return '['.implode(',',$params).']';
 	}

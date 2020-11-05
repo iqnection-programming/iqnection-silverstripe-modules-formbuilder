@@ -15,4 +15,13 @@ class ToggleDisplayFieldAction extends FieldAction
 		$actionData['action']['callback'] = ($this->Parent()->HideByDefault) ? 'actionShowField' : 'actionHideField';
 		return $actionData;
 	}
+	
+	public function singular_name()
+	{
+		if ($this->Parent()->Exists())
+		{
+			return $this->Parent()->HideByDefault ? 'Show Field' : 'Hide Field';
+		}
+		return parent::singular_name();
+	}
 }

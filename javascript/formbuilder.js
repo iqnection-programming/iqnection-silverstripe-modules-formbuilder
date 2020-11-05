@@ -1,7 +1,7 @@
 (function($){
 	"use strict";
 	window._formBuilderRules = window._formBuilderRules || [];
-	
+
 	/* 	Stores additional action callbacks not declared in original FormBuilder object
 		to add callbacks, copy the below line into your javascript file
 		then extend the object
@@ -12,7 +12,7 @@
 		});
 	*/
 	window._formBuilderActions = window._formBuilderActions || {};
-	
+
 	/* 	Stores additional state callbacks not declared in original FormBuilder object
 		to add callbacks, copy the below line into your javascript file
 		then extend the object
@@ -23,15 +23,14 @@
 		});
 	*/
 	window._formBuilderStates = window._formBuilderStates || {};
-	
+
 	$.validator.addMethod("minSelections", function(values, element, params) {
 		return values.length >= params;
 	}, $.validator.format("Please select at least {0} options"));
-	
+
 	$.validator.addMethod("maxSelections", function(values, element, params) {
 		return values.length <= params;
 	}, $.validator.format("Please select no more than {0} options"));
-	
 	window.FormBuilder = function(rulesData) {
 		$.extend(this, {
 			rulesData: rulesData,
@@ -46,7 +45,8 @@
 				rules: {},
 				messages: {}
 			},
-			hiddenDropdownValues: {},
+			hiddenSelectionValues: {},
+			selectFieldOptions: {},
 			conditions: {
 				onFormLoad: []
 			},
@@ -59,7 +59,8 @@
 				me.fieldActions = rulesData.fieldActions;
 				me.formId = me.rulesData.formId;
 				me.form = $("#" + me.formId);
-				me.formFields = me.form.find('input, textarea, select');				
+				me.formFields = me.form.find('input, textarea, select');
+				me.selectFieldOptions = me.rulesData.selectFieldOptions;
 				me.loadFieldActions(me.fieldActions);
 				me.loadValidatorConfig(me.validatorConfig);
 				setTimeout(function(){
@@ -164,29 +165,56 @@
 				if (field[0] !== undefined) {
 					field = field[0];
 				}
-				field.FormBuilderKeys = field.FormBuilderKeys || [];
-				field.FormBuilderKeys.push(key);
-				if (field.FormBuilder === undefined) {
-					field.FormBuilder = this;
+				if ($(field).is('option')) {
+					return this.bindField($(field).parent('select'), key);
+				}
+				if ($(field).data('FormBuilderKeys') === undefined) {
+					$(field).data('FormBuilderKeys', []);
+				}
+				$(field).data('FormBuilderKeys').push(key);
+				if ($(field).data('FormBuilder') === undefined) {
+					$(field).data('FormBuilder', this);
 					$(field).change(function(){
 						var _key;
 						var conditionResult;
-						for(var k=0; k < this.FormBuilderKeys.length; k++) {
-							this.FormBuilder.triggerActions(this.FormBuilderKeys[k]);
+						for(var k=0; k < $(this).data('FormBuilderKeys').length; k++) {
+							$(this).data('FormBuilder').triggerActions($(this).data('FormBuilderKeys')[k]);
 						}
 					});
 				}
 			},
+			// gets the form main div element for the entire field or field list
 			_getFieldContainer: function(selector) {
+				// get this target field
+				var $target = $(selector);
+				// see if there is a wrapper
+				if ($target.parents('.fieldgroup-field').length) {
+					$target = $target.parents('.fieldgroup-field');
+				} else if ($target.parents('.field').length) {
+					$target = $target.parents('.field');
+				}
+				return $target;
+			},
+			// gets the container where an element is listed with siblings
+			// an element removed can be added back into the orignal container
+			_getOptionsContainer: function(selector) {
 				// get this target field
 				var $target = $(selector);
 				// see if there is a wrapper
 				if ($target.is('option')) {
 					$target = $target.parents('select').first();
-				} else if ($target.parents('.fieldgroup-field').length) {
-					$target = $target.parents('.fieldgroup-field');
-				} else if ($target.parents('.field').length) {
-					$target = $target.parents('.field');
+				} else if ($target.is('[type="radio"],[type="checkbox"]')) {
+					$target = $target.parents('ul').first();
+				}
+				return $target;
+			},
+			// gets the input parent element that will be removed from it's siblings
+			_getSelectionContainer: function(selector) {
+				// get this target field
+				var $target = $(selector);
+				// see if there is a wrapper
+				if ($target.is('[type="radio"],[type="checkbox"]')) {
+					$target = $target.parents('li, div, label').first();
 				}
 				return $target;
 			},
@@ -196,7 +224,8 @@
 				if (!result) {
 					return this.actionHideField(actionData, !result);
 				}
-				return this._getFieldContainer(actionData.selector).show();
+				var $target = this._getFieldContainer(actionData.selector);
+				$target.show();
 			},
 			// hides a field if the result is true
 			actionHideField: function(actionData, result) {
@@ -204,7 +233,8 @@
 					return this.actionShowField(actionData, !result);
 				}
 				$(actionData.selector).prop('checked', false);
-				return this._getFieldContainer(actionData.selector).hide();
+				var $target = this._getFieldContainer(actionData.selector);
+				$target.hide();
 			},
 			// adds a selection option if the result is true
 			actionShowFieldOption: function(actionData, result) {
@@ -212,73 +242,30 @@
 				if (!result) {
 					return this.actionHideFieldOption(actionData, !result);
 				}
-				var $target = $(actionData.fieldSelector);
-				if ($target.length) {
-					console.warn('Action "actionShowFieldOption" called when option is already shown');
-					return;
-				}
-				var $field = this._getFieldContainer(actionData.fieldSelector);
-				if (!$field.length) {
+				var $target = this._getSelectionContainer(actionData.selector);
+				if (!$target.length) {
 					console.warn('Form Builder action to show field option, but field container is not found', actionData);
 					return;
 				}
-				if (this.hiddenDropdownValues[actionData.selector] === undefined) {
-					console.error('Dropdown element not cached for injection', actionData);
-					return;
-				}
-				if (this.selectFieldOptions[actionData.fieldSelector] === undefined) {
-					console.error('Original options not provided to inject removed value', actionData);
-					return;
-				}
-				var insertBeforeIndex = 0;
-				for(var o=0; o < actionData.allOptions.length; o++) {
-					// did we get to the affected option in the list
-					if (actionData.allOptions[o].selector === actionData.selector) {
-						switch (actionData.fieldType) {
-							case 'Dropdown':
-								// if the first value is an empty value, increment one more
-								if ($field.find('option').first().attr('value') === '') {
-									insertBeforeIndex++;
-								}
-								$field.find('> *').eq(insertBeforeIndex).before(this.hiddenDropdownValues[actionData.selector]);
-								break;
-							case 'Radio Buttons':
-							case 'Checkbox':
-								$field.find('> *').eq(insertBeforeIndex).before(this.hiddenDropdownValues[actionData.selector]);
-								break;
-							default:
-								console.warn('Injection not setup for '+actionData.fieldType+' type field');
-						}
-						return;
-					// if the current parsed option exists, update the injection index
-					} else if ($(actionData.allOptions[o].selector).length) {
-						insertBeforeIndex++;
-					}
-				}
+				$target.show();
 			},
 			// removes a selection option if the result is true
 			actionHideFieldOption: function(actionData, result) {
-				// get this target field
 				if (!result) {
 					return this.actionShowFieldOption(actionData, !result);
 				}
-				var $target = this._getFieldContainer(actionData.fieldSelector);
+				// get this target field
+				var $target = this._getSelectionContainer(actionData.selector);
 				if (!$target.length) {
 					console.warn('Form Builder action to hide field option, but field container is not found', actionData);
 					return;
 				}
-				switch (actionData.fieldType) {
-					case 'Dropdown':
-						break;
-					case 'Radio Buttons':
-					case 'Checkbox':
-						$target = this._getFieldContainer(actionData.selector);
-						break;
-					default:
-						console.warn('Injection not setup for '+actionData.fieldType+' type field');
+				if ($target.is('option')) {
+					$target.prop('selected', false);
+				} else {
+					$target.prop('checked',false);
 				}
-				this.hiddenDropdownValues[actionData.selector] = $target.clone();
-				$target.remove();
+				$target.hide();
 			},
 			stateOnFormLoad: function(condition) {
 				// if we're calling this script, then the form is loaded
@@ -304,7 +291,7 @@
 				} else if ( ($conditionField.is('select')) ) { //|| ($conditionField.is('input[type="radio"]')) ) {
 					if (condition.selections !== undefined) {
 						for(var c = 0; c < condition.selections.length; c++) {
-							if ($conditionFieldValue === condition.selections[c].value) {
+							if ($conditionFieldValue === condition.selections[c].value.toString()) {
 								return true;
 							}
 						}
@@ -323,9 +310,9 @@
 				return ($conditionField.val() !== '');
 			}
 		});
-		
+
 		this.init(rulesData);
-		
+
 		return this;
 	};
 	window._formBuilders = [];

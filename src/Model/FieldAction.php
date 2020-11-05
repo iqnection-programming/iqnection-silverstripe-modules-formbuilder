@@ -21,36 +21,36 @@ class FieldAction extends DataObject
 	private static $singular_name = 'Action';
 	private static $plural_name = 'Actions';
 	private static $hide_ancestor = FieldAction::class;
-	
+
 	private static $db = [
 	];
-	
+
 	private static $has_one = [
 		'Parent' => Field::class
 	];
-	
+
 	private static $many_many = [
 		'Children' => Field::class,
 		'ChildSelections' => SelectFieldOption::class
 	];
-	
+
 	private static $many_many_extraFields = [
 		'Children' => [
 			'State' => "Enum('Has Value,Match,Is Empty','Has Value')",
 		]
 	];
-	
+
 	private static $summary_fields = [
 		'ActionType' => 'Type',
 		'Explain' => 'Conditions'
 	];
-	
+
 	private static $casting = [
 		'Explain' => 'HTMLFragment'
 	];
-	
+
 	private static $allowed_field_types;
-	
+
 	public function getCMSFields()
 	{
 		$fields = parent::getCMSFields();
@@ -62,7 +62,7 @@ class FieldAction extends DataObject
 		$fields->unshift( Forms\HeaderField::create('_actionType', 'Action: '.$this->singular_name(),1));
 		if (!$this->Exists())
 		{
-			$fields->addFieldToTab('Root.Main', Forms\HeaderField::create('_saveWarning','You must save first'));
+			$fields->addFieldToTab('Root.Main', Forms\HeaderField::create('_saveWarning','You must save before adding conditions'));
 		}
 		else
 		{
@@ -81,8 +81,13 @@ class FieldAction extends DataObject
 					->addComponent($searchButton = new GridFieldAddExistingSearchButton())
 			));
 			$searchButton->setTitle('Add Condition');
-			$searchButton->setSearchList($this->Parent()->FormBuilder()->DataFields());
-			
+			$dataFields = $this->Parent()->FormBuilder()->DataFields();
+			if ($dataFields->Count())
+			{
+				$dataFields = $dataFields->Exclude('ID',$this->Parent()->ID);
+			}
+			$searchButton->setSearchList($dataFields);
+
 			$editableColumns->setDisplayFields([
 				'Name' => [
 					'title' => 'Field',
@@ -93,12 +98,17 @@ class FieldAction extends DataObject
 					'callback' => function($record, $col, $grid) {
 						if ($record->hasExtension(SelectField::class))
 						{
+							$source = [];
+							foreach($record->Options() as $option)
+							{
+								$source[$option->ID] = $option->getOptionLabel();
+							}
 							return Forms\SelectionGroup::create('State', [
 								Forms\SelectionGroup_Item::create('Has Value', null, 'Any selected'),
 								Forms\SelectionGroup_Item::create(
-									'Match', 
+									'Match',
 									Forms\CheckboxSetField::create('_ChildSelections','Options')
-										->setSource($record->Options()->map('ID','Value'))
+										->setSource($source)
 										->setDefaultItems($this->ChildSelections()->Column('ID')),
 									'Specified selected (when the user chooses any below selected values, this action will be triggered)'),
 								Forms\SelectionGroup_Item::create('Is Empty', null, 'Non selected'),
@@ -114,7 +124,7 @@ class FieldAction extends DataObject
 					}
 				]
 			]);
-			
+
 //			$watchedFieldIDs = $this->Children()->Column('ID');
 //			if (count($watchedFieldIDs))
 //			{
@@ -132,7 +142,7 @@ class FieldAction extends DataObject
 $fields->addFieldToTab('Root.Validation', Forms\LiteralField::create('_validation', '<div style="width:100%;overflow:scroll;"><pre><xmp>'.print_r(json_encode($this->getActionData(), JSON_PRETTY_PRINT),1).'</xmp></pre></div>'));
 		return $fields;
 	}
-	
+
 	public function isFieldTypeAllowed($fieldType)
 	{
 		if (is_object($fieldType))
@@ -158,17 +168,22 @@ $fields->addFieldToTab('Root.Validation', Forms\LiteralField::create('_validatio
 		}
 		return true;
 	}
-	
+
+	public function FormBuilder()
+	{
+		return $this->Parent()->FormBuilder();
+	}
+
 	public function getTitle()
 	{
 		return $this->singular_name();
 	}
-	
+
 	public function testConditions($submittedValues = [])
 	{
 		$result = true;
 		// all conditions must be met
-		
+
 		foreach($this->Children() as $child)
 		{
 			if (!$this->testCondition($child->State, $child, $submittedValues))
@@ -180,7 +195,7 @@ $fields->addFieldToTab('Root.Validation', Forms\LiteralField::create('_validatio
 		$this->extend('updateTestResult', $result, $submittedValues);
 		return $result;
 	}
-	
+
 	protected function testCondition($state, $testField, $values = [])
 	{
 		$fieldName = $testField->getFrontendFieldName();
@@ -215,7 +230,7 @@ $fields->addFieldToTab('Root.Validation', Forms\LiteralField::create('_validatio
 		}
 		return false;
 	}
-	
+
 	public function onAfterWrite()
 	{
 		parent::onAfterWrite();
@@ -243,8 +258,9 @@ $fields->addFieldToTab('Root.Validation', Forms\LiteralField::create('_validatio
 				$this->ChildSelections()->removeMany($remove->Column('ID'));
 			}
 		}
+		$this->FormBuilder()->clearJsCache();
 	}
-	
+
 	public function getBetterButtonsActions()
 	{
 		$actions = parent::getBetterButtonsActions();
@@ -256,13 +272,14 @@ $fields->addFieldToTab('Root.Validation', Forms\LiteralField::create('_validatio
 		}
 		return $actions;
 	}
-	
+
 	public function Explain()
 	{
 		$conditions = [];
+		$text = '<div>Action: '.$this->singular_name().'</div>';
 		foreach($this->Children() as $conditionField)
 		{
-			$condition = $this->singular_name().' if <strong>'.$conditionField->Name.'</strong>';
+			$condition = $conditionField->Name.' ';
 			switch($conditionField->State)
 			{
 				default:
@@ -277,10 +294,10 @@ $fields->addFieldToTab('Root.Validation', Forms\LiteralField::create('_validatio
 			$conditions[] = $condition;
 		}
 		$this->extend('updateExplanation', $conditions);
-		$text = '<div style="padding-left:10px;">'.implode('<br />',$conditions).'</div>';
+		$text .= ' - Conditions: <ul><li>'.implode('</li><li>',$conditions).'</ul>';
 		return FieldType\DBField::create_field(FieldType\DBHTMLVarchar::class, $text);
 	}
-	
+
 	public function getActionData()
 	{
 		$js= [
@@ -319,7 +336,7 @@ $fields->addFieldToTab('Root.Validation', Forms\LiteralField::create('_validatio
 		}
 		return $js;
 	}
-	
+
 	public function ActionType()
 	{
 		return $this->singular_name();

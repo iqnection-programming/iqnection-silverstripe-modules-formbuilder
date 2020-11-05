@@ -16,4 +16,13 @@ class ToggleDisplaySelectionAction extends SelectFieldOptionAction
 		$actionData['action']['callback'] = ($this->Parent()->HideByDefault) ? 'actionShowFieldOption' : 'actionHideFieldOption';
 		return $actionData;
 	}
+	
+	public function singular_name()
+	{
+		if ($this->Parent()->Exists())
+		{
+			return $this->Parent()->HideByDefault ? 'Show Selection' : 'Hide Selection';
+		}
+		return parent::singular_name();
+	}
 }

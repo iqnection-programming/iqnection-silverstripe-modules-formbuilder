@@ -3,10 +3,9 @@
 
 .form-builder .field .optionset.horizontal li							{ display:inline-flex; margin:6px 30px 0 0; }
 
-.form-builder .stacked.col2 .fieldgroup-field						{ width:49%; float:left; margin-left:2%; }
-.form-builder .stacked.col2 .fieldgroup-field:first-child			{ margin-left:0; }
-.form-builder .stacked.col3 .fieldgroup-field						{ width:32%; float:left; margin-left:2%; }
-.form-builder .stacked.col3 .fieldgroup-field:first-child			{ margin-left:0; }
+.form-builder .stacked											{ display:flex; flex:1 1 0px; }
+.form-builder .stacked .fieldgroup-field						{ width:49%; float:left; margin-left:2%; }
+.form-builder .stacked .fieldgroup-field:first-child			{ margin-left:0; }
 .form-builder .stacked label.right								{ font-style:italic; margin:0; text-align:left !important; font-size:14px; float:none; }
 .form-builder .stacked input.required + label.right:after,
 .form-builder .stacked select.required + label.right:after,
@@ -15,9 +14,21 @@
 .form-builder .form-builder-header								{ clear:both; padding:0 0 5px 0; border-bottom:solid 1px #2b3966;  margin:20px 0px; }
 .form-builder .form-builder-content								{ font-size:0.9em; line-height:1.2; }
 
+.form-builder .form-builder-content								{ color:#039; }
+.form-builder .form-builder-content p							{ line-height:1.2; }
+
+.form-builder .form-builder-content.top-padding-none			{ padding-top:0; }
+.form-builder .form-builder-content.top-padding-small			{ padding-top:5px; }
+.form-builder .form-builder-content.top-padding-medium			{ padding-top:10px; }
+.form-builder .form-builder-content.top-padding-large			{ padding-top:20px; }
+.form-builder .form-builder-content.bottom-padding-none			{ padding-bottom:0; }
+.form-builder .form-builder-content.bottom-padding-small		{ padding-bottom:5px; }
+.form-builder .form-builder-content.bottom-padding-medium		{ padding-bottom:10px; }
+.form-builder .form-builder-content.bottom-padding-large		{ padding-bottom:20px; }
+
 @media(min-width:601px){
 	.form-builder .form-builder-content,
-	.form-builder .form-builder-header							{ margin-left:35%; margin-bottom:5px; }
+	.form-builder .form-builder-header							{ margin-left:35%; }
 }
 @media(max-width: 600px){
 	.form-builder .stacked input.required + label.right			{ overflow:hidden; white-space:nowrap; font-size:11px !important; }

@@ -14,41 +14,44 @@ use IQnection\FormBuilder\Extensions\Cacheable;
 use SilverStripe\Core\Injector\Injector;
 use IQnection\FormUtilities\FormUtilities;
 use SilverStripe\ORM\FieldType;
+use IQnection\FormBuilder\Model\SelectFieldOptionAction;
 
 class SelectField extends DataExtension
-{	
+{
 	private static $db = [
 		'Label' => 'Varchar(255)',
 		'Required' => 'Boolean',
 		'Description' => 'Varchar(255)',
 	];
-	
+
 	private static $has_many = [
 		'Options' => SelectFieldOption::class
 	];
-	
+
 	private static $cascade_duplicates = [
 		'Options'
 	];
-	
+
 	private static $cascade_caches = [
 		'Options'
 	];
-	
+
 	private static $prepopulate = [
 		'prepopulateStates' => 'US States',
 		'prepopulateCaProvinces' => 'Canada Provinces',
 		'prepopulateCountries' => 'Countries'
 	];
-	
+
 	private static $select_options_class = \IQnection\FormBuilder\Model\SelectFieldOption::class;
-	
+
 	public function updateCMSFields($fields)
 	{
 		$fields->dataFieldByName('Label')->setDescription('(Optional) Defaults to the field name. This will display as the field label on the form');
 		$fields->dataFieldByName('Required')->setTitle('This is a Required Field');
 		$fields->dataFieldByName('Description')->setDescription('(Optional) Small text to display under the field as a description');
-		
+
+		$fields->addFieldToTab('Root.Options', Forms\CheckboxField::create('_clearOptions','Remove all options')
+			->setValue(false));
 		$fields->addFieldToTab('Root.Options', Forms\DropdownField::create('_prepopulate','Add Predefined Values')
 			->setSource($this->owner->Config()->get('prepopulate'))
 			->setEmptyString(' ')
@@ -91,15 +94,23 @@ class SelectField extends DataExtension
 		]);
 		return $fields;
 	}
-	
+
 	public function onBeforeWrite()
 	{
 		$this->prepopulateCall = $_REQUEST['_prepopulate'];
 		$_REQUEST['_prepopulate'] = null;
+		$this->clearOptions = $_REQUEST['_clearOptions'];
+		$_REQUEST['_clearOptions'] = null;
 	}
-	
+
 	public function onAfterWrite()
 	{
+		if ( (isset($this->clearOptions)) && ($this->owner->Options()->Count()) )
+		{
+			$this->owner->Options()->removeMany($this->owner->Options()->Column('ID'));
+		}
+		$this->_clearOptions = false;
+		$this->owner->_clearOptions = false;
 		if (isset($this->prepopulateCall))
 		{
 			if ( (array_key_exists($this->prepopulateCall,$this->owner->Config()->get('prepopulate'))) && ($this->owner->hasMethod($this->prepopulateCall)) )
@@ -108,15 +119,32 @@ class SelectField extends DataExtension
 			}
 		}
 	}
-	
+
 	public function updateExplanation(&$text)
 	{
+		$text .= '<ul>';
 		foreach($this->owner->Options() as $Option)
 		{
-			$text .= $Option->Explain();
+			if ($Option->hasActions())
+			{
+				$text .= '<li>'.$Option->Explain().'</li>';
+			}
+		}
+		$text .= '</ul>';
+	}
+
+	public function updateHasActions(&$hasActions)
+	{
+		if (!$hasActions)
+		{
+			$optionIDs = $this->owner->Options()->Column('ID');
+			if ( (is_array($optionIDs)) && (count($optionIDs)) )
+			{
+				$hasActions = (bool) SelectFieldOptionAction::get()->Filter('ParentID', $optionIDs)->Count();
+			}
 		}
 	}
-	
+
 	public function updateStatusOptionsField(&$field)
 	{
 		$options = [];
@@ -128,25 +156,25 @@ class SelectField extends DataExtension
 			->setSource($options);
 		return $field;
 	}
-	
+
 	public function prepopulateStates()
 	{
 		$values = FormUtilities::GetStates();
 		return $this->owner->prepopulateValues($values);
 	}
-	
+
 	public function prepopulateCaProvinces()
 	{
 		$values = FormUtilities::GetCanadianProvinces();
 		return $this->owner->prepopulateValues($values);
 	}
-	
+
 	public function prepopulateCountries()
 	{
 		$values = FormUtilities::GetCountries();
 		return $this->owner->prepopulateValues($values);
 	}
-	
+
 	public function prepopulateValues($values)
 	{
 		$currentOptions = $this->owner->Options();
@@ -157,8 +185,8 @@ class SelectField extends DataExtension
 			{
 				$count++;
 				$option = Injector::inst()->create($this->owner->Config()->get('select_options_class'), [
-					'Value' => $value, 
-					'Label' => $label, 
+					'Value' => $value,
+					'Label' => $label,
 					'SortOrder' => $count,
 					'FieldID' => $this->owner->ID
 				]);
@@ -167,7 +195,7 @@ class SelectField extends DataExtension
 		}
 		return $this;
 	}
-	
+
 //	public function updateBetterButtonsActions($actions)
 //	{
 //		if (!$this->owner->Exists())
@@ -176,7 +204,7 @@ class SelectField extends DataExtension
 //			$actions->fieldByName('action_save')->setTitle('Continue');
 //		}
 //	}
-	
+
 	public function getFieldSourceArray()
 	{
 		$source = [];
@@ -187,7 +215,7 @@ class SelectField extends DataExtension
 		$this->owner->extend('updateFieldSourceArray', $source);
 		return $source;
 	}
-	
+
 	public function updateBaseField(&$field, &$validator)
 	{
 		if ($this->owner->Required)
@@ -202,7 +230,7 @@ class SelectField extends DataExtension
 			$field->setDescription($this->owner->Description);
 		}
 	}
-	
+
 	public function updatePreparedSubmittedValue(&$value)
 	{
 		if (!is_array($value))
@@ -219,12 +247,12 @@ class SelectField extends DataExtension
 		}
 		$value = implode(', ',$actualValues);
 	}
-	
+
 	public function isMultiple()
 	{
 		return false;
 	}
-	
+
 	public function updateFieldJsValidation(&$js)
 	{
 		if ($this->owner->Required)
@@ -232,22 +260,25 @@ class SelectField extends DataExtension
 			$js['required'] = true;
 		}
 	}
-	
+
 	public function updateActionsJs(&$js)
 	{
-		foreach($this->owner->Options() as $option)
+		if ($this->owner->Options()->Count())
 		{
-			$ActionsJs = $option->getActionsJs();
-			if (!empty($ActionsJs))
+			foreach($this->owner->Options() as $option)
 			{
-				foreach($ActionsJs as $ActionJs)
+				$ActionsJs = $option->getActionsJs();
+				if (!empty($ActionsJs))
 				{
-					$js[] = $ActionJs;
+					foreach($ActionsJs as $ActionJs)
+					{
+						$js[] = $ActionJs;
+					}
 				}
 			}
 		}
 	}
-	
+
 	public function getOptionjQuerySelector($option, $valueSelector = false)
 	{
 		return $this->owner->getjQuerySelector();
