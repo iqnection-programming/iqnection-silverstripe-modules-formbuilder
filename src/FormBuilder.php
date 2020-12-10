@@ -29,37 +29,41 @@ class FormBuilder extends DataObject implements Flushable
 	private static $singular_name = 'Form';
 	private static $plural_name = 'Forms';
 	private static $default_submit_text = 'Submit';
-	
+
+	private static $use_nospam = true;
+
 	private static $extensions = [
 		FieldGroupExtension::class
 	];
-	
+
 	private static $db = [
 		'Title' => 'Varchar(255)',
 		'SubmitText' => 'Varchar(50)',
 		'ConfirmationText' => 'HTMLText',
 		'JsValidationCache' => 'Text'
 	];
-	
+
 	private static $has_many = [
 		'Actions' => FormAction::class,
 		'Submissions' => Submission::class
 	];
-	
+
 	private static $defaults = [
 		'SubmitText' => 'Submit',
 		'ConfirmationText' => 'Thank you for your submission'
 	];
-	
+
+	private static $default_sort = 'Title ASC';
+
 	private static $cascade_duplicates = [
 		'Actions'
 	];
-	
+
 	private static $cascade_caches = [
 		'Actions'
 	];
 
-	public function CanDelete($member = null, $context = []) { return false; }
+	protected $_form;
 
 	public static function flush()
 	{
@@ -79,10 +83,12 @@ class FormBuilder extends DataObject implements Flushable
 		$fields->dataFieldByName('Title')->setDescription('For internal purposes only');
 		if ($this->Exists())
 		{
-			$fields->insertBefore('Title',Forms\ReadonlyField::create('Shortcode','Shortcode')
+			$fields->insertBefore('Title',Forms\TextField::create('Shortcode','Shortcode')
 				->setValue(ShortcodeParser::generateShortcode($this))
+				->setReadonly(true)
+				->setAttribute('onclick', 'javascript:select(this);')
 				->setDescription('Copy this short code and paste on any page where you want to display this form<br />
-<a href="'.FormBuilderPreview::singleton()->Link($this->ID).'" target="_blank">Preview Form</a>'));
+<a href="'.FormBuilderPreview::singleton()->PreviewLink($this->ID).'" target="_blank">Preview Form</a>'));
 		}
 		if ($submissions_fg = $fields->dataFieldByName('Submissions'))
 		{
@@ -175,15 +181,14 @@ $fields->addFieldToTab('Root.FieldActions', Forms\LiteralField::create('_validat
 		$this->extend('updateFormName', $name);
 		return $name;
 	}
-	
+
 	public function getFormHTMLID()
 	{
 		$name = 'FormBuilderForm_'.$this->ID;
 		$this->extend('updateFormName', $name);
 		return $name;
 	}
-	
-	protected $_form;
+
 	public function generateForm($controller = null,$defaults = null)
 	{
 		if (is_null($this->_form))
@@ -206,16 +211,11 @@ $fields->addFieldToTab('Root.FieldActions', Forms\LiteralField::create('_validat
 				$actions,
 				$validator
 			)->setFormAction($controller->FormActionUrl($this, $controller))
-			->setAttribute('data-form-builder-id', $this->ID)
-			->addExtraClass('form-builder')
-			->setHTMLID($this->getFormHTMLID());
+				->setAttribute('data-form-builder', true)
+				->setAttribute('data-form-builder-id', $this->ID)
+				->addExtraClass('form-builder')
+				->setHTMLID($this->getFormHTMLID());
 			$this->_form->FormBuilder = $this;
-
-			Requirements::css('iqnection-modules/formbuilder:css/formbuilder.css');
-			Requirements::javascript('themes/mysite/javascript/jquery.validate.nospam.js');
-			Requirements::javascript('themes/mysite/javascript/additional-methods.js');
-			Requirements::customScript($this->getFrontEndCustomScript(),'formbuilder-'.$this->ID);
-			Requirements::javascript('iqnection-modules/formbuilder:javascript/formbuilder.js');
 
 			if ($controller->getRequest()->isPOST())
 			{
@@ -234,12 +234,25 @@ $fields->addFieldToTab('Root.FieldActions', Forms\LiteralField::create('_validat
 				}
 				$this->_form->setMessage(implode('<br />', $errors));
 			}
+
+			$controller->invokeWithExtensions('onBeforeFormBuilderRequirements', $this);
+			$this->includeRequirements($controller);
+			$controller->invokeWithExtensions('onAfterFormBuilderRequirements', $this);
 		}
-		
+
 		$this->extend('updateForm', $this->_form);
 		return $this->_form;
 	}
-	
+
+	public function includeRequirements($controller)
+	{
+		Requirements::css('iqnection-modules/formbuilder:client/css/formbuilder.css');
+		Requirements::customScript($this->getFrontEndCustomScript(),'formbuilder-'.$this->ID);
+		Requirements::javascript('iqnection-modules/formbuilder:client/javascript/jquery.validate.nospam.js');
+		Requirements::javascript('iqnection-modules/formbuilder:client/javascript/additional-methods.js');
+		Requirements::javascript('iqnection-modules/formbuilder:client/javascript/formbuilder.js');
+	}
+
 	public function getFrontEndJS()
 	{
 		$cachedScript = json_decode($this->JsValidationCache,1);
@@ -257,6 +270,10 @@ $fields->addFieldToTab('Root.FieldActions', Forms\LiteralField::create('_validat
 			],
 			'selectFieldOptions' => []
 		];
+		if ( ($this->Config()->get('use_nospam')) && (class_exists('IQnection\\FormPage\\NoSpamController')) && (class_exists('IQnection\\FormUtilities\\FormUtilities')) )
+		{
+			$scripts['validatorConfig']['useNospam'] = true;
+		}
 		$formLoadStateCondition = [[
 			'selector' => '[data-form-builder-id="'.$this->ID.'"]',
 			'state' => 'Loaded',
@@ -267,24 +284,13 @@ $fields->addFieldToTab('Root.FieldActions', Forms\LiteralField::create('_validat
 		foreach($this->FieldsFlat() as $Field)
 		{
 			$fieldSelector = $Field->getjQuerySelector();
+			foreach($Field->getOnLoadFieldActions($formLoadStateCondition) as $baseAction)
+			{
+				$scripts['fieldActions'][] = $baseAction;
+			}
 			foreach($Field->FieldActions() as $fieldAction)
 			{
 				$scripts['fieldActions'][] = $fieldAction->getActionData();
-			}
-			if ($Field->HideByDefault)
-			{
-				$scripts['fieldActions'][] = [
-					'id' => $Field->ID.'.1',
-					'name' => 'Field: '.$Field->Name,
-					'action' => [
-						'type' => 'Hidden on Load',
-						'selector' => $fieldSelector,
-						'fieldType' => $Field->singular_name(),
-						'callback' => 'actionHideField',
-					],
-					'conditions' => $formLoadStateCondition,
-					'conditionsHash' => 'onFormLoad'
-				];
 			}
 			// collect all selectable values for storage
 			if ($Field->hasExtension(SelectField::class))
@@ -302,22 +308,9 @@ $fields->addFieldToTab('Root.FieldActions', Forms\LiteralField::create('_validat
 					{
 						$scripts['fieldActions'][] = $fieldOptionAction->getActionData();
 					}
-					// create the action if the option is hidden on form load
-					if ($fieldOption->HideByDefault)
+					foreach($fieldOption->getOnLoadFieldSelectionActions($formLoadStateCondition) as $baseAction)
 					{
-						$scripts['fieldActions'][] = [
-							'id' => $fieldOption->ID.'.1',
-							'name' => $Field->Name. ' Option: '.$fieldOption->Value,
-							'action' => [
-								'type' => 'Hidden on Load',
-								'selector' => $fieldOptionSelector,
-								'callback' => 'actionHideFieldOption',
-								'fieldType' => $Field->singular_name(),
-								'fieldSelector' => $fieldSelector,
-							],
-							'conditions' => $formLoadStateCondition,
-							'conditionsHash' => 'onFormLoad'
-						];
+						$scripts['fieldActions'][] = $baseAction;
 					}
 				}
 			}
@@ -343,19 +336,19 @@ $fields->addFieldToTab('Root.FieldActions', Forms\LiteralField::create('_validat
 		}
 		return $scripts;
 	}
-	
+
 	public function getFrontEndCustomScript()
 	{
 		return "window._formBuilderRules = window._formBuilderRules || [];
 window._formBuilderRules.push(".json_encode($this->getFrontEndJS()).");";
 	}
-	
+
 	public function forTemplate()
 	{
 		$controller = Controller::curr();
 		return $this->generateForm($controller)->forTemplate();
 	}
-	
+
 	public function FieldPlacements()
 	{
 		$placementIDs = [];
@@ -368,21 +361,35 @@ window._formBuilderRules.push(".json_encode($this->getFrontEndJS()).");";
 		}
 		return Field::get()->byIDs($placementIDs);
 	}
-	
+
 	public function onBeforeDuplicate($original, $doWrite, $relations)
 	{
 		$this->Title = 'Copy of '.$original->Title;
 	}
-	
-	public function processFormData(&$data, $form, $request, &$response)
+
+	public function processFormData(&$data, &$form, &$controller)//&$request, &$response)
 	{
+		$this->extend('beforeProcessFormData', $data, $form, $controller);
+
+		// test nospam
+		if ( ($this->Config()->get('use_nospam')) && (class_exists('IQnection\\FormPage\\NoSpamController')) && (class_exists('IQnection\\FormUtilities\\FormUtilities')) )
+		{
+			if (!\IQnection\FormUtilities\FormUtilities::validateAjaxCode())
+			{
+				$form->sessionMessage('You Must JavaScript Enabled');
+				$controller->redirectBack();
+				return;
+			}
+		}
+
 		// if we've made it this far, then validation has passed
 		foreach($this->DataFields() as $dataField)
 		{
-			$dataField->invokeWithExtensions('processFormData',$data, $form, $request, $response);
+			$dataField->invokeWithExtensions('processFormData',$data, $form, $controller);
 		}
+		$this->extend('afterProcessFormData', $data, $form, $controller);
 	}
-	
+
 	public function createSubmission($data, $form)
 	{
 		$submission = Submission::create();
@@ -420,10 +427,10 @@ window._formBuilderRules.push(".json_encode($this->getFrontEndJS()).");";
 		{
 			$submittedValue->write();
 		}
-		
+
 		return $submission;
 	}
-	
+
 	public function handleEvent($event, $form, $data, $submission)
 	{
 		foreach($this->Actions()->Filter('Event', $event) as $action)

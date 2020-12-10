@@ -17,7 +17,7 @@ use SilverStripe\Control\Controller;
 class UploadField extends DataExtension
 {
 	private static $submissions_folder = 'form-submissions';
-	
+
 	private static $valid_upload_categories = [
 		'archive' => array(
             'gz', 'jar', 'rar', 'tar', 'tgz', 'zip', 'zipx',
@@ -36,7 +36,7 @@ class UploadField extends DataExtension
             'avi', 'm1v', 'm2v', 'm4v', 'mov', 'mp4', 'mpeg', 'mpg', 'ogv', 'webm', 'wmv',
         ),
 	];
-	
+
 	private static $db = [
 		'AllowedExtensions' => 'Text',
 		'MaxFileSize' => 'Varchar(255)',
@@ -44,7 +44,7 @@ class UploadField extends DataExtension
 		'Required' => 'Boolean',
 		'Description' => 'Varchar(255)',
 	];
-	
+
 	public function updateCMSFields($fields)
 	{
 		$fields->removeByName([
@@ -71,13 +71,13 @@ class UploadField extends DataExtension
 		$fields->addFieldToTab('Root.Main', Forms\CheckboxSetField::create('_AllowedExtensions[Categories]','Allowed File Extensions')
 			->setDefaultItems($defaultAllowedExtensionCategories)
 			->setSource($extensionsList));
-			
+
 		$fields->addFieldToTab('Root.Main', Forms\TextField::create('_AllowedExtensions[Custom]','Custom/Additional Extensions')
 			->setDescription('Separate with a comma'));
 		$fields->addFieldToTab('Root.Main', Forms\TextField::create('MaxFileSize', 'Max File Size')
 			->setDescription('Server Max: '.ini_get('upload_max_filesize')));
 	}
-	
+
 	public function onBeforeWrite()
 	{
 		if (isset($_REQUEST['_AllowedExtensions']))
@@ -85,7 +85,7 @@ class UploadField extends DataExtension
 			$this->owner->AllowedExtensions = json_encode($_REQUEST['_AllowedExtensions']);
 		}
 	}
-	
+
 	public function getAllowedUploadExtensions()
 	{
 		$allowedExtensions = [];
@@ -107,14 +107,14 @@ class UploadField extends DataExtension
 		} catch (\Exception $e) { }
 		return $allowedExtensions;
 	}
-	
+
 	public function updatePreparedSubmittedValue(&$value)
 	{
 		// since this is an array, and we need access to the SubmissionFieldValue to save the file
 		// we'll just set the object value to null so it safely sets teh field
 		$value = null;
 	}
-	
+
 	public function updateBaseField(&$field, &$validator)
 	{
 		$allowedExtensions = $this->owner->getAllowedUploadExtensions();
@@ -128,11 +128,10 @@ class UploadField extends DataExtension
 		$field->setTitle(FieldType\DBField::create_field(FieldType\DBHTMLVarchar::class, $label));
 		if ($this->owner->Required)
 		{
-			$validator->addRequiredField($this->owner->getFrontendFieldName());
 			$field->addExtraClass('required');
 		}
 	}
-	
+
 	public function updateSubmissionFieldValue($submissionFieldValue)
 	{
 		$fileArray = unserialize($submissionFieldValue->RawValue);
@@ -164,7 +163,7 @@ class UploadField extends DataExtension
 			$rootFolder->CanEditType = 'LoggedInUsers';
 			$rootFolder->write();
 		}
-		
+
 		$formSubmissionsFolderName = $filter->filter(preg_replace('/[\/]/',' ',$this->owner->FormBuilder()->Title));
 		$destinationPath = File::join_paths($rootFolder->getFilename(),$thisFormSubmissionsFolderName);
 		$destinationFolder = Folder::find_or_make($destinationPath);
@@ -175,11 +174,11 @@ class UploadField extends DataExtension
 			{
 				AssetAdmin::create()->generateThumbnails($file);
 			}
-			$submissionFieldValue->FileID = $file->ID;	
+			$submissionFieldValue->FileID = $file->ID;
 			$submissionFieldValue->Value = $file->getAbsoluteURL();
 		}
 	}
-	
+
 	public function updateFieldJsValidation(&$js)
 	{
 		if ($this->owner->Required)

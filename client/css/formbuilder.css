@@ -1,7 +1,8 @@
 
 
+.form-builder p.error.message 									{ color: #c00; padding: 10px; background: rgb(204, 0, 0, 0.15); border-radius: 5px; border: 1px solid #e49797; }
 
-.form-builder .field .optionset.horizontal li							{ display:inline-flex; margin:6px 30px 0 0; }
+.form-builder .field .optionset.horizontal li					{ display:inline-flex; margin:6px 30px 0 0; }
 
 .form-builder .stacked											{ display:flex; flex:1 1 0px; }
 .form-builder .stacked .fieldgroup-field						{ width:49%; float:left; margin-left:2%; }
@@ -9,7 +10,7 @@
 .form-builder .stacked label.right								{ font-style:italic; margin:0; text-align:left !important; font-size:14px; float:none; }
 .form-builder .stacked input.required + label.right:after,
 .form-builder .stacked select.required + label.right:after,
-.form-builder .stacked textarea.required + label.right:after		{ content:" *"; color:#c00000; }
+.form-builder .stacked textarea.required + label.right:after	{ content:" *"; color:#c00000; }
 
 .form-builder .form-builder-header								{ clear:both; padding:0 0 5px 0; border-bottom:solid 1px #2b3966;  margin:20px 0px; }
 .form-builder .form-builder-content								{ font-size:0.9em; line-height:1.2; }
@@ -26,7 +27,11 @@
 .form-builder .form-builder-content.bottom-padding-medium		{ padding-bottom:10px; }
 .form-builder .form-builder-content.bottom-padding-large		{ padding-bottom:20px; }
 
+.form-builder .show-counter										{ padding-bottom:25px; }
+.form-builder .show-counter + .form-builder-counter-display		{ display:block; float:right; font-size:13px; line-height:1; margin:-25px 25px 0px 0px; position: relative; z-index: 20; }
+
 @media(min-width:601px){
+	.form-builder p.error.message 								{ max-width: 65%; margin: auto 0 10px auto; }
 	.form-builder .form-builder-content,
 	.form-builder .form-builder-header							{ margin-left:35%; }
 }

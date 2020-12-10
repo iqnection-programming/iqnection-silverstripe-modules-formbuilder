@@ -9,6 +9,7 @@ use SilverStripe\Core\Convert;
 use SilverStripe\Core\Injector\Injector;
 use IQnection\FormBuilder\FormBuilder;
 use IQnection\FormBuilder\Model\FieldAction;
+use IQnection\FormBuilder\Model\FormAction;
 use Symbiote\GridFieldExtensions\GridFieldAddNewMultiClass;
 use Symbiote\GridFieldExtensions\GridFieldAddNewInlineButton;
 use Symbiote\GridFieldExtensions\GridFieldAddExistingSearchButton;
@@ -16,6 +17,7 @@ use Symbiote\GridFieldExtensions\GridFieldEditableColumns;
 use Symbiote\GridFieldExtensions\GridFieldOrderableRows;
 use Symbiote\GridFieldExtensions\GridFieldTitleHeader;
 use SilverStripe\ORM\FieldType;
+use IQnection\FormBuilder\Actions\ToggleDisplayFieldAction;
 
 class Field extends DataObject
 {
@@ -44,7 +46,8 @@ class Field extends DataObject
 
 	private static $belongs_many_many = [
 		'OwnerFieldActions' => FieldAction::class.'.Children',
-		'OwnerSelectionActions' => SelectFieldOptionAction::class.'.Children'
+		'OwnerSelectionActions' => SelectFieldOptionAction::class.'.Children',
+		'OwnerFormActions' => FormAction::class.'.ConditionFields',
 	];
 
 	private static $defaults = [
@@ -70,7 +73,8 @@ class Field extends DataObject
 			'SubmissionValues',
 			'FieldActions',
 			'OwnerFieldActions',
-			'OwnerSelectionActions'
+			'OwnerSelectionActions',
+			'OwnerFormActions'
 		]);
 //		$fields->insertBefore('Enable', Forms\HeaderField::create('_fieldType', 'Field Type: '.$this->singular_name(),1));
 		$fields->unshift( Forms\HeaderField::create('_fieldType', 'Field Type: '.$this->singular_name(),1));
@@ -115,6 +119,27 @@ $fields->addFieldToTab('Root.Validation', Forms\LiteralField::create('_validatio
 		return $fields;
 	}
 
+	public function onBeforeDuplicate($original, $doWrite, $relations)
+	{
+		$this->Title = 'Copy of '.$original->Title;
+		$name = $this->Name;
+		$itt = 1;
+		if (preg_match('/\s\d+$/',$this->Name))
+		{
+			$currentItt = preg_replace('/^.*\s(\d+)$/','$1', $name);
+			$name = preg_replace('/^(.*)\s\d+$/','$1', $name);
+			$itt += $currentItt;
+		}
+		$this->Name = $name.' '.$itt;
+	}
+
+	public function ConditionOptionsField(&$fieldAction)
+	{
+		$field = Forms\SelectionGroup::create('State', []);
+		$this->extend('updateConditionOptions', $field, $fieldAction);
+		return $field;
+	}
+
 	public function EnableDisplay()
 	{
 		return $this->dbObject('Enable')->Nice();
@@ -146,6 +171,50 @@ $fields->addFieldToTab('Root.Validation', Forms\LiteralField::create('_validatio
 		return $allowedActions;
 	}
 
+	public function updateFrontEndValidator(&$validator, $formData = [])
+	{
+		if ($isRequired = $this->Required)
+		{
+			$hidden = $this->HideByDefault;
+			// if this field has actions, check to see if the field is hidden based on conditions
+			foreach($this->FieldActions() as $fieldAction)
+			{
+				if ( ($fieldAction instanceof ToggleDisplayFieldAction) && ($fieldAction->testConditions($formData)) )
+				{
+					// conditions are true, field is toggles
+					$hidden = !$hidden;
+				}
+			}
+			if ($hidden)
+			{
+				$validator->addRequiredField($this->getFrontendFieldName());
+			}
+		}
+	}
+
+	public function getOnLoadFieldActions($onLoadCondition = null)
+	{
+		$actions = [];
+		$fieldSelector = $this->getjQuerySelector();
+		if ($this->HideByDefault)
+		{
+			$actions[] = [
+				'id' => $this->ID.'.1',
+				'name' => 'Field: '.$this->Name,
+				'action' => [
+					'type' => 'Hidden on Load',
+					'selector' => $fieldSelector,
+					'fieldType' => $this->singular_name(),
+					'callback' => 'actionHideField',
+				],
+				'conditions' => $onLoadCondition,
+				'conditionsHash' => 'onFormLoad'
+			];
+		}
+		$this->extend('updateOnLoadFieldActions', $actions);
+		return $actions;
+	}
+
 	public function validate()
 	{
 		$result = parent::validate();
@@ -156,7 +225,7 @@ $fields->addFieldToTab('Root.Validation', Forms\LiteralField::create('_validatio
 			// see if this form contains the field with the same name
 			if ($otherField = $otherFields->Filter('ContainerID',$this->ContainerID)->First())
 			{
-				$result->addError('This field name is already used in this form on a '.$otherField->singular_name());
+				$result->addError('Field name "'.$this->Title.'" is already used in this form on a '.$otherField->singular_name());
 			}
 		}
 		return $result;
@@ -275,7 +344,13 @@ $fields->addFieldToTab('Root.Validation', Forms\LiteralField::create('_validatio
 
 	public function getBaseField(&$validator = null)
 	{
-		user_error('Method '.__FUNCTION__.' must be implemented on class '.$this->getClassName());
+		$field = false;
+		$this->extend('updateBaseField', $field, $validator);
+		if (!$field)
+		{
+			user_error('Method '.__FUNCTION__.' must be implemented on class '.$this->getClassName());
+		}
+		return $field;
 	}
 
 	public function scaffoldSearchFields($params = null)
@@ -324,7 +399,7 @@ $fields->addFieldToTab('Root.Validation', Forms\LiteralField::create('_validatio
 		return $submissionFieldValue;
 	}
 
-	public function processFormData(&$data, $form, $request, &$response)
+	public function processFormData(&$data, &$form, &$controller)
 	{ }
 
 	public function handleEvent($event, $form, $data, $submission)

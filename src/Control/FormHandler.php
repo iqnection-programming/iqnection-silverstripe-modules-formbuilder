@@ -4,8 +4,9 @@ namespace IQnection\FormBuilder\Control;
 
 use SilverStripe\Control\Controller;
 use SilverStripe\Control\Director;
-use SilverStripe\Forms\FormRequestHandler;
+use SilverStripe\Control\HTTPResponse;
 use SilverStripe\Core\Extension;
+use SilverStripe\Forms\FormRequestHandler;
 use IQnection\FormBuilder\FormBuilder;
 use IQnection\FormBuilder\Model\Submission;
 
@@ -15,13 +16,13 @@ class FormHandler extends Extension
 		'_formbuilderSubmit',
 		'_confirm'
 	];
-	
+
 	private static $url_segment = '_formbuilderSubmit';
-	
+
 	private static $url_handlers = [
-		'_formbuilderSubmit/$FormBuilderID' => '_formbuilderSubmit' 
+		'_formbuilderSubmit/$FormBuilderID' => '_formbuilderSubmit'
 	];
-	
+
 	public function FormActionUrl(FormBuilder $form, $controller = null)
 	{
 		if (!$controller)
@@ -30,25 +31,32 @@ class FormHandler extends Extension
 		}
 		return Controller::join_links($controller->Link(),'_formbuilderSubmit',$form->ID);
 	}
-	
+
 	public function handleForm($data, $form)
 	{
 		$formBuilder = $form->FormBuilder;
 		$response = $this->owner->getResponse();
-		$formBuilder->processFormData($data, $form, $this->owner->getRequest(), $response);
-		if ($response->isFinished())
+		$formBuilder->processFormData($data, $form, $this->owner);//$this->owner->getRequest(), $response);
+		if ($this->owner->getResponse()->isFinished())
 		{
-			return response;
+			return $this->owner->getResponse();
 		}
-		
+
 		$submission = $formBuilder->createSubmission($data, $form);
 		$submission->PageID = $this->owner->ID;
 		$submission->PageName = $this->owner->Breadcrumbs(20, true, false, true);
 		$submission->write();
-		
+
 		// handle actions
-		$formBuilder->handleEvent('onFormSubmit', $form, $data, $submission);
-		
+		$result = $formBuilder->handleEvent('onFormSubmit', $form, $data, $submission);
+
+		// clear the cached values
+		$form->clearFormState();
+
+		if ( ($result instanceof HTTPResponse) && ($result->isFinished()) )
+		{
+			return $result;
+		}
 		// redirect to confirmation page
 		// provides an opportunity to add extra query params for tracking
 		$redirectParams = [
@@ -56,9 +64,9 @@ class FormHandler extends Extension
 			's' => md5(md5($submission->ID))
 		];
 		$this->owner->invokeWithExtensions('updateFormBuilderConfirmationUrlParams', $redirectParams);
-		
+
 		$redirectURL = Controller::join_links($this->owner->Link(),'_confirm','?'.http_build_query($redirectParams));
-		
+
 		return $this->owner->redirect($redirectURL);
 	}
 
@@ -69,7 +77,7 @@ class FormHandler extends Extension
 			return $FormBuilder->generateForm($this->owner);
 		}
 	}
-	
+
 	public function _confirm()
 	{
 		if ( (!$s = $this->owner->getRequest()->getVar('s')) || (!$submission = Submission::get()->Where("MD5(MD5(MD5(`ID`))) = '".md5($s)."'")->First()) )
@@ -78,7 +86,6 @@ class FormHandler extends Extension
 		}
 		if ( (!$f = $this->owner->getRequest()->getVar('f')) || (!$formbuilder = FormBuilder::get()->Where("MD5(MD5(MD5(`ID`))) = '".md5($f)."'")->First()) )
 		{
-
 			return $this->owner->redirectBack();
 		}
 		return $this->owner->Customise([

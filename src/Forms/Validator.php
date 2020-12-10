@@ -15,28 +15,8 @@ class Validator extends RequiredFields
 		{
 			if ($formBuilderField = $formField->FormBuilderField)
 			{
-				if ($isRequired = $formBuilderField->Required)
-				{
-					$hidden = $formBuilderField->HideByDefault;
-					// if this field has actions, check to see if the field is hidden based on conditions
-					if ( ($formBuilderField->FieldActions()->Count()) && (!$hidden) )
-					{
-						foreach($formBuilderField->FieldActions() as $fieldAction)
-						{
-							if ( ($fieldAction instanceof ToggleDisplayFieldAction) && ($fieldAction->testConditions($data)) )
-							{
-								// conditions are true, field is toggles
-								$hidden = !$hidden;
-							}
-						}
-					}
-					if ($hidden)
-					{
-						// remove from required
-						$this->removeRequiredField($formBuilderField->getFrontendFieldName());
-					}
-				}
-			
+				$formBuilderField->invokeWithExtensions('updateFrontEndValidator', $this, $data);
+
 				$fieldName = $formBuilderField->getFrontendFieldName();
 				$value = (array_key_exists($fieldName,$data)) ? $data[$fieldName] : null;
 				$errors = $formBuilderField->validateFormValue($value);

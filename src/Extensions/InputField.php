@@ -4,6 +4,8 @@ namespace IQnection\FormBuilder\Extensions;
 
 use SilverStripe\ORM\DataExtension;
 use SilverStripe\ORM\FieldType;
+use SilverStripe\Forms;
+use IQnection\FormBuilder\Fields\CheckboxField;
 
 class InputField extends DataExtension
 {
@@ -13,7 +15,7 @@ class InputField extends DataExtension
 		'Required' => 'Boolean',
 		'Description' => 'Varchar(255)',
 	];
-	
+
 	public function updateCMSFields($fields)
 	{
 		$fields->addFieldToTab('Root.Settings', $fields->dataFieldByName('Placeholder')
@@ -23,7 +25,21 @@ class InputField extends DataExtension
 		$fields->dataFieldByName('Description')->setDescription('(Optional) Small text to display under the field as a description');
 		return $fields;
 	}
-	
+
+	public function updateConditionOptions(&$field)
+	{
+		if ($this->owner instanceof CheckboxField)
+		{
+			$field->push(Forms\SelectionGroup_Item::create('Has Value', null, 'Is Checked'));
+			$field->push(Forms\SelectionGroup_Item::create('Is Empty', null, 'Non Checked'));
+		}
+		else
+		{
+			$field->push(Forms\SelectionGroup_Item::create('Has Value', null, 'Has Value'));
+			$field->push(Forms\SelectionGroup_Item::create('Is Empty', null, 'No Value'));
+		}
+	}
+
 	public function updateBaseField(&$field, &$validator)
 	{
 		if ($this->owner->Placeholder)
@@ -32,7 +48,6 @@ class InputField extends DataExtension
 		}
 		if ($this->owner->Required)
 		{
-			$validator->addRequiredField($this->owner->getFrontendFieldName());
 			$field->addExtraClass('required');
 		}
 		$label = ($this->owner->Label) ? $this->owner->Label : $this->owner->Name;
@@ -42,7 +57,7 @@ class InputField extends DataExtension
 			$field->setDescription($this->owner->Description);
 		}
 	}
-	
+
 	public function updateFieldJsValidation(&$js)
 	{
 		if ($this->owner->Required)

@@ -10,22 +10,24 @@ class DropdownField extends Field
 {
 	private static $table_name = 'FormBuilderDropdownField';
 	private static $singular_name = 'Dropdown';
-	
+
 	private static $extensions = [
 		SelectField::class
 	];
-	
+
 	private static $db = [
 		'EmptyString' => 'Varchar(50)',
 	];
-	
+
 	public function getCMSFields()
 	{
 		$fields = parent::getCMSFields();
-		$fields->dataFieldByName('EmptyString')->setAttribute('placeholder','ex. --- Select ---');
+		$fields->dataFieldByName('EmptyString')
+			->setAttribute('placeholder','ex. --- Select ---')
+			->setDescription('This will display when no value is selected.');
 		return $fields;
 	}
-	
+
 	public function getBaseField(&$validator = null)
 	{
 		$field = Forms\DropdownField::create($this->getFrontendFieldName());
@@ -38,9 +40,9 @@ class DropdownField extends Field
 		{
 			$field->setValue($defaultSelection->ID);
 		}
-		return $field;		
+		return $field;
 	}
-	
+
 	public function validate()
 	{
 		$result = parent::validate();
@@ -50,7 +52,7 @@ class DropdownField extends Field
 		}
 		return $result;
 	}
-	
+
 	public function getOptionjQuerySelector($option)
 	{
 		return $this->getjQuerySelector().' option[value="'.$option->ID.'"]';

@@ -1,28 +1,31 @@
+window._formBuilderRules = window._formBuilderRules || [];
+
+/* 	Stores additional action callbacks not declared in original FormBuilder object
+	to add callbacks, copy the below line into your javascript file
+	then extend the object
+	$.extend(window._formBuilderActions, {
+		myAction: function({the action data} actionData, {the result of the condition check} result) {
+			// do something here
+		}
+	});
+*/
+window._formBuilderActions = window._formBuilderActions || {};
+
+/* 	Stores additional state callbacks not declared in original FormBuilder object
+	to add callbacks, copy the below line into your javascript file
+	then extend the object
+	$.extend(window._formBuilderStates, {
+		myStateCheck: function({the condition data} condition) {
+			// do something here, must return either true or false
+		}
+	});
+*/
+window._formBuilderStates = window._formBuilderStates || {};
+
+window._formBuilders = [];
+
 (function($){
 	"use strict";
-	window._formBuilderRules = window._formBuilderRules || [];
-
-	/* 	Stores additional action callbacks not declared in original FormBuilder object
-		to add callbacks, copy the below line into your javascript file
-		then extend the object
-		$.extend(window._formBuilderActions, {
-			myAction: function({the action data} actionData, {the result of the condition check} result) {
-				// do something here
-			}
-		});
-	*/
-	window._formBuilderActions = window._formBuilderActions || {};
-
-	/* 	Stores additional state callbacks not declared in original FormBuilder object
-		to add callbacks, copy the below line into your javascript file
-		then extend the object
-		$.extend(window._formBuilderStates, {
-			myStateCheck: function({the condition data} condition) {
-				// do something here, must return either true or false
-			}
-		});
-	*/
-	window._formBuilderStates = window._formBuilderStates || {};
 
 	$.validator.addMethod("minSelections", function(values, element, params) {
 		return values.length >= params;
@@ -31,6 +34,7 @@
 	$.validator.addMethod("maxSelections", function(values, element, params) {
 		return values.length <= params;
 	}, $.validator.format("Please select no more than {0} options"));
+
 	window.FormBuilder = function(rulesData) {
 		$.extend(this, {
 			rulesData: rulesData,
@@ -39,7 +43,7 @@
 			formId: null,
 			formFields: [],
 			validator: null,
-			validatorConfig: {},
+			validatorConfig: rulesData.validatorConfig || {},
 			_validatorBaseConfig: {
 				useNospam: true,
 				rules: {},
@@ -157,7 +161,7 @@
 					} else if (typeof window[actionCallbackName] === 'function') {
 						window[actionCallbackName](actionData, conditionResult);
 					} else {
-						formBuilder.handleError('Conditional callback ' + actionData.callback + ' does not exist');
+						this.handleError('Conditional callback ' + actionData.callback + ' does not exist');
 					}
 				}
 			},
@@ -174,7 +178,7 @@
 				$(field).data('FormBuilderKeys').push(key);
 				if ($(field).data('FormBuilder') === undefined) {
 					$(field).data('FormBuilder', this);
-					$(field).change(function(){
+					$(field).on('change', function(){
 						var _key;
 						var conditionResult;
 						for(var k=0; k < $(this).data('FormBuilderKeys').length; k++) {
@@ -306,6 +310,9 @@
 				var $conditionField = $(condition.selector);
 				if (($conditionField.is('input[type="checkbox"]')) || ($conditionField.is('input[type="radio"]'))) {
 					return ($conditionField.filter(':checked').length > 0);
+				} else if ($conditionField.is('input.currency')) {
+					var floatVal = Math.ceil(parseFloat($conditionField.val().replace(/[^0-9\.]/,'')));
+					return (floatVal > 0);
 				}
 				return ($conditionField.val() !== '');
 			}
@@ -315,10 +322,80 @@
 
 		return this;
 	};
-	window._formBuilders = [];
+
+	window.FormBuilderCounter = function(element) {
+		if (element[0] !== undefined) {
+			element = element[0];
+		}
+		if (element._formBuilderCounter !== undefined) {
+			return element._formBuilderCounter;
+		}
+		element._formBuilderCounter = {
+			element: element,
+			currentCount: 0,
+			countType: '',
+			countDisplay: null,
+			init: function() {
+				this.countType = this.element.dataset.count;
+				this.countDisplay = $("<span/>");
+				$(this.element).after($("<span/>")
+					.addClass('form-builder-counter-display')
+					.text(this.countType.charAt(0).toUpperCase() + this.countType.slice(1) + ' Count: ')
+					.append(this.countDisplay));
+				$(this.element).on('keyup blur focus', function(){
+					this._formBuilderCounter.count();
+				});
+				this.count();
+				return this;
+			},
+			count: function() {
+				switch(this.countType) {
+					case 'word':
+					case 'words':
+						return this.countWords();
+					case 'character':
+					case 'characters':
+						return this.countCharacters();
+				}
+				return this;
+			},
+			countWords: function() {
+				if (this.element.value === "") {
+					return this._displayCount(0);
+				}
+				return this._displayCount(this.element
+					.value	// get the field valule
+					.trim()	// trim off any white space
+					.replace(/\s{2,}/,' ')	// correct any double spaces
+					.split(' ')	// split by the space character
+					.length);	// count the words
+			},
+			countCharacters: function() {
+				if (this.element.value === "") {
+					return this._displayCount(0);
+				}
+				return this._displayCount(this.element
+					.value	// get the field value
+					.split('')	// split every character
+					.length);	// count the characters
+			},
+			_displayCount: function(num) {
+				if (parseInt($(this.element).attr('data-current-count')) !== parseInt(num)) {
+					this.countDisplay.text(num);
+					$(this.element).attr('data-current-count', num).trigger('count-changed');
+				}
+				return this;
+			}
+		};
+		return element._formBuilderCounter.init();
+	};
+
 	$(document).ready(function(){
 		for(var r = 0; r < window._formBuilderRules.length; r++) {
 			window._formBuilders.push(new window.FormBuilder(window._formBuilderRules[r]));
 		}
+		$("form[data-form-builder]").find('textarea.show-counter[data-count]').each(function(){
+			window.FormBuilderCounter(this);
+		});
 	});
 }(jQuery));

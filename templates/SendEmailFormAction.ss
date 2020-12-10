@@ -1,12 +1,12 @@
-$Body
+$Action.Body
 
-<% if $IncludeSubmission && $Submission.Exists %>
+<% if $Action.IncludeSubmission && $Submission.Exists %>
 	<h3>Submission</h3>
 	<% loop $Submission.SubmissionFieldValues %>
-		<div><strong>$Title:</strong> 
+		<div><strong>$Title:</strong>
 			<% if $FileID %>
 				<% if $File.Exists %>
-					<% if $Top.MakeFileLinks %>
+					<% if $Action.Top.MakeFileLinks %>
 						<a href="$File.AbsoluteURL" target="_blank">$File.Name</a>
 					<% else %>
 						$File.Name

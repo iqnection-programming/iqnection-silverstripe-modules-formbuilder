@@ -90,11 +90,17 @@ class SendEmailFormAction extends FormAction
 
 	public function onFormSubmit($form, $data, $submission)
 	{
+		// test the conditions
+		if (!$this->testConditions($data))
+		{
+			return null;
+		}
+
 		// Send the email
 		$email = Email::create()
 			->setFrom($this->FromEmail)
 			->setSubject($this->Subject)
-			->setData($this)
+			->setData(['Action' => $this, 'Submission' => $submission])
 			->setHTMLTemplate('SendEmailFormAction');
 		if ($this->FromName)
 		{

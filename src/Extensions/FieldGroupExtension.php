@@ -9,6 +9,7 @@ use SilverStripe\Core\ClassInfo;
 use Symbiote\GridFieldExtensions\GridFieldAddNewMultiClass;
 use Symbiote\GridFieldExtensions\GridFieldAddNewInlineButton;
 use Symbiote\GridFieldExtensions\GridFieldEditableColumns;
+use Symbiote\GridFieldExtensions\GridFieldOrderableRows;
 use UndefinedOffset\SortableGridField\Forms\GridFieldSortableRows;
 use SwiftDevLabs\DuplicateDataObject\Forms\GridField\GridFieldDuplicateAction;
 use IQnection\FormBuilder\Extensions\Cacheable;
@@ -51,7 +52,8 @@ class FieldGroupExtension extends DataExtension
 				'Fields',
 				$this->owner->Fields(),
 				Forms\GridField\GridFieldConfig_RecordEditor::create(100)
-					->addComponent(new GridFieldSortableRows('SortOrder'))
+					->addComponent(new GridFieldOrderableRows('SortOrder'))
+//					->addComponent(new GridFieldSortableRows('SortOrder'))
 					->addComponent($GridFieldAddNewMultiClass = new GridFieldAddNewMultiClass())
 					->removeComponentsByType(Forms\GridField\GridFieldAddNewButton::class)
 					->addComponent(new GridFieldDuplicateAction())

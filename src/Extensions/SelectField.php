@@ -95,6 +95,25 @@ class SelectField extends DataExtension
 		return $fields;
 	}
 
+	public function updateConditionOptions(&$field, &$fieldAction)
+	{
+		$source = [];
+		foreach($this->owner->Options() as $option)
+		{
+			$source[$option->ID] = $option->getOptionLabel();
+		}
+		$defaults = $fieldAction->ChildSelections()->Count() ? $fieldAction->ChildSelections()->Column('ID') : [];
+		$field->push(Forms\SelectionGroup_Item::create('Has Value', null, 'Any selected'));
+		$field->push(Forms\SelectionGroup_Item::create(
+			'Match',
+			Forms\CheckboxSetField::create('_ChildSelections','Options')
+				->setSource($source)
+				->setDefaultItems($defaults),
+			'Specified selected (when the user chooses any below selected values, this action will be triggered)')
+		);
+		$field->push(Forms\SelectionGroup_Item::create('Is Empty', null, 'Non selected'));
+	}
+
 	public function onBeforeWrite()
 	{
 		$this->prepopulateCall = $_REQUEST['_prepopulate'];
@@ -220,7 +239,6 @@ class SelectField extends DataExtension
 	{
 		if ($this->owner->Required)
 		{
-			$validator->addRequiredField($this->owner->getFrontendFieldName());
 			$field->addExtraClass('required');
 		}
 		$label = ($this->owner->Label) ? $this->owner->Label : $this->owner->Name;

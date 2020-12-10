@@ -36,7 +36,7 @@ class FieldAction extends DataObject
 
 	private static $many_many_extraFields = [
 		'Children' => [
-			'State' => "Enum('Has Value,Match,Is Empty','Has Value')",
+			'State' => 'Varchar(255)',
 		]
 	];
 
@@ -50,6 +50,14 @@ class FieldAction extends DataObject
 	];
 
 	private static $allowed_field_types;
+
+	private static $condition_options = [
+		'Has Value' => 'Has Value',
+		'Match' => 'Match',
+		'Is Empty' => 'Is Empty',
+		'Greater Than' => 'Greater Than',
+		'Less Than' => 'Less Than'
+	];
 
 	public function getCMSFields()
 	{
@@ -77,7 +85,7 @@ class FieldAction extends DataObject
 					->addComponent(new Forms\GridField\GridFieldToolbarHeader())
 					->addComponent(new GridFieldTitleHeader())
 					->addComponent($editableColumns = new GridFieldEditableColumns())
-					->addComponent(new Forms\GridField\GridFieldDeleteAction())
+					->addComponent(new Forms\GridField\GridFieldDeleteAction(true))
 					->addComponent($searchButton = new GridFieldAddExistingSearchButton())
 			));
 			$searchButton->setTitle('Add Condition');
@@ -88,59 +96,42 @@ class FieldAction extends DataObject
 			}
 			$searchButton->setSearchList($dataFields);
 
-			$editableColumns->setDisplayFields([
+			$displayFields =[
 				'Name' => [
 					'title' => 'Field',
 					'field' => Forms\ReadonlyField::class
 				],
 				'State' => [
-					'title' => 'Field',
-					'callback' => function($record, $col, $grid) {
-						if ($record->hasExtension(SelectField::class))
+					'title' => 'State',
+					'callback' => function($fieldRecord, $col, $grid) {
+						if ($fieldRecord instanceof FieldAction)
 						{
-							$source = [];
-							foreach($record->Options() as $option)
-							{
-								$source[$option->ID] = $option->getOptionLabel();
-							}
-							return Forms\SelectionGroup::create('State', [
-								Forms\SelectionGroup_Item::create('Has Value', null, 'Any selected'),
-								Forms\SelectionGroup_Item::create(
-									'Match',
-									Forms\CheckboxSetField::create('_ChildSelections','Options')
-										->setSource($source)
-										->setDefaultItems($this->ChildSelections()->Column('ID')),
-									'Specified selected (when the user chooses any below selected values, this action will be triggered)'),
-								Forms\SelectionGroup_Item::create('Is Empty', null, 'Non selected'),
-							]);
+							$states = $this->Config()->get('condition_options');
+							return Forms\OptionsetField::create('State','Field State')
+								->setSource($states);
 						}
-						$states = ['Has Value' => 'Has Value', 'Is Empty' => 'Is Empty'];
-						if ($record instanceof CheckboxField)
+						if (!($fieldRecord instanceof \IQnection\FormBuilder\Model\Field))
 						{
-							$states = ['Has Value' => 'Is Checked', 'Is Empty' => 'Not Checked'];
+							$fieldRecord = $fieldRecord->Parent();
 						}
-						return Forms\OptionsetField::create('State','Field State')
-							->setSource($states);
+						return $fieldRecord->ConditionOptionsField($this);
 					}
 				]
-			]);
-
-//			$watchedFieldIDs = $this->Children()->Column('ID');
-//			if (count($watchedFieldIDs))
-//			{
-//				foreach(Field::get()->byIDs($watchedFieldIDs) as $dataField)
-//				{
-//					if ($dataField->hasExtension(SelectField::class))
-//					{
-//						$fields->addFieldToTab('Root.Field Selections', Forms\CheckboxsetField::create('_ChildSelections['.$dataField->ID.']',$dataField->Name)
-//							->setSource($dataField->Options()->map('ID','getOptionLabel'))
-//							->setDefaultItems($this->ChildSelections()->Column('ID')));
-//					}
-//				}
-//			}
+			];
+			$editableColumns->setDisplayFields($displayFields);
 		}
 $fields->addFieldToTab('Root.Validation', Forms\LiteralField::create('_validation', '<div style="width:100%;overflow:scroll;"><pre><xmp>'.print_r(json_encode($this->getActionData(), JSON_PRETTY_PRINT),1).'</xmp></pre></div>'));
 		return $fields;
+	}
+
+	public function validate()
+	{
+		$result = parent::validate();
+//		if ( ($this->Exists()) && (!$this->Children()->Count()) )
+//		{
+//			$result->addError('You must add at least one condition');
+//		}
+		return $result;
 	}
 
 	public function isFieldTypeAllowed($fieldType)
@@ -192,7 +183,7 @@ $fields->addFieldToTab('Root.Validation', Forms\LiteralField::create('_validatio
 				break;
 			}
 		}
-		$this->extend('updateTestResult', $result, $submittedValues);
+		$this->extend('updateTestConditions', $result, $submittedValues);
 		return $result;
 	}
 
@@ -231,32 +222,36 @@ $fields->addFieldToTab('Root.Validation', Forms\LiteralField::create('_validatio
 		return false;
 	}
 
+	public function onBeforeWrite()
+	{
+		parent::onBeforeWrite();
+	}
+
 	public function onAfterWrite()
 	{
 		parent::onAfterWrite();
-		if (array_key_exists('_ChildSelections',$_REQUEST))
+		// there's some kind of bug that make the FieldAction pass instead of the actual record
+		// create a field for each extra field so the info is passed properly and saved
+
+		if ( (array_key_exists('Children',$_REQUEST)) && (isset($_REQUEST['Children']['GridFieldEditableColumns'])) )
 		{
-			$linkedSelectionIDs = [];
-			if (is_array($_REQUEST['_ChildSelections']))
+			foreach($_REQUEST['Children']['GridFieldEditableColumns'] as $id => $extraFields)
 			{
-				foreach($_REQUEST['_ChildSelections'] as $fieldID => $selectionID)
+				if ($record = $this->Children()->byId($id))
 				{
-					if ($selection = SelectFieldOption::get()->byID($selectionID))
-					{
-						$this->ChildSelections()->add($selection);
-						$linkedSelectionIDs[] = $selection->ID;
-					}
+//					foreach($extraFields as $extraFieldName => &$extraFieldValue)
+//					{
+//						$extraFieldValue = FieldType\DBField::create_field($extraFieldType, $extraFieldValue)->setValue($extraFieldValue)->getValue();
+//					}
+					$this->Children()->add($record, $extraFields);
 				}
 			}
-			$remove = $this->ChildSelections();
-			if (count($linkedSelectionIDs))
-			{
-				$remove = $remove->Exclude('ID',$linkedSelectionIDs);
-			}
-			if ($remove->Count())
-			{
-				$this->ChildSelections()->removeMany($remove->Column('ID'));
-			}
+		}
+
+		if (array_key_exists('_ChildSelections',$_REQUEST))
+		{
+			$this->ChildSelections()->removeAll();
+			$this->ChildSelections()->addMany($_REQUEST['_ChildSelections']);
 		}
 		$this->FormBuilder()->clearJsCache();
 	}
@@ -268,7 +263,7 @@ $fields->addFieldToTab('Root.Validation', Forms\LiteralField::create('_validatio
 		if (!$this->Exists())
 		{
 			$actions->removeByName(['action_doSaveAndQuit']);
-			$actions->fieldByName('action_save')->setTitle('Continue');
+			$actions->fieldByName('action_save')->setTitle('Continue to Add Conditions');
 		}
 		return $actions;
 	}
@@ -288,7 +283,16 @@ $fields->addFieldToTab('Root.Validation', Forms\LiteralField::create('_validatio
 					$condition .= ' '.$conditionField->State;
 					break;
 				case 'Match':
-					$condition .= ' Has Selected: '.implode(', ',$conditionField->Options()->Filter('ID', $this->ChildSelections()->Column('ID'))->Column('Value'));
+					$condition .= ' Has Selected: ';
+					$ids = $this->ChildSelections()->Column('ID');
+					if (count($ids))
+					{
+						$condition .= implode(', ',$conditionField->Options()->Filter('ID', $ids)->Column('Value'));
+					}
+					else
+					{
+						$condition .= '(no selections)';
+					}
 					break;
 			}
 			$conditions[] = $condition;
@@ -320,7 +324,7 @@ $fields->addFieldToTab('Root.Validation', Forms\LiteralField::create('_validatio
 				'stateCallback' => 'state'.preg_replace('/[^a-zA-Z]/','',$child->State),
 				'selections' => [],
 			];
-			if ($child->hasExtension(SelectField::class))
+			if ( ($child->hasExtension(SelectField::class)) && ($this->ChildSelections()->Count()) )
 			{
 				foreach($this->ChildSelections()->Filter('FieldID',$child->ID) as $childFieldSelection)
 				{
@@ -332,13 +336,20 @@ $fields->addFieldToTab('Root.Validation', Forms\LiteralField::create('_validatio
 				}
 			}
 			$js['conditions'][] = $fieldJs;
-			$js['conditionsHash'] = md5(json_encode($fieldJs));
 		}
+		$js['conditionsHash'] = md5(json_encode($js['conditions']));
 		return $js;
 	}
 
 	public function ActionType()
 	{
 		return $this->singular_name();
+	}
+
+	public function onBeforeDelete()
+	{
+		parent::onBeforeDelete();
+		$this->Children()->removeAll();
+		$this->ChildSelections()->removeAll();
 	}
 }
