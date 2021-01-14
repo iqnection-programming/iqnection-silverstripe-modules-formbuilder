@@ -15,6 +15,8 @@ use SilverStripe\Core\Injector\Injector;
 use IQnection\FormUtilities\FormUtilities;
 use SilverStripe\ORM\FieldType;
 use IQnection\FormBuilder\Model\SelectFieldOptionAction;
+use IQnection\FormBuilder\Model\FieldAction;
+use IQnection\FormBuilder\Model\FormAction;
 
 class SelectField extends DataExtension
 {
@@ -102,7 +104,15 @@ class SelectField extends DataExtension
 		{
 			$source[$option->ID] = $option->getOptionLabel();
 		}
-		$defaults = $fieldAction->ChildSelections()->Count() ? $fieldAction->ChildSelections()->Column('ID') : [];
+		if ($fieldAction instanceof FieldAction)
+		{
+			$defaults = $fieldAction->ChildSelections()->Count() ? $fieldAction->ChildSelections()->Column('ID') : [];
+		}
+		elseif ($fieldAction instanceof FormAction)
+		{
+			$defaults = $fieldAction->ConditionFieldSelections()->Count() ? $fieldAction->ConditionFieldSelections()->Column('ID') : [];
+		}
+
 		$field->push(Forms\SelectionGroup_Item::create('Has Value', null, 'Any selected'));
 		$field->push(Forms\SelectionGroup_Item::create(
 			'Match',
@@ -214,15 +224,6 @@ class SelectField extends DataExtension
 		}
 		return $this;
 	}
-
-//	public function updateBetterButtonsActions($actions)
-//	{
-//		if (!$this->owner->Exists())
-//		{
-//			$actions->removeByName(['action_doSaveAndQuit','action_doSaveAndAdd']);
-//			$actions->fieldByName('action_save')->setTitle('Continue');
-//		}
-//	}
 
 	public function getFieldSourceArray()
 	{

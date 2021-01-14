@@ -63,8 +63,6 @@ class Field extends DataObject
 
 	private static $default_sort = 'SortOrder ASC';
 
-//	public function CanDelete($member = null, $context = []) { return false; }
-
 	public function getCMSFields()
 	{
 		$fields = parent::getCMSFields();
@@ -76,7 +74,7 @@ class Field extends DataObject
 			'OwnerSelectionActions',
 			'OwnerFormActions'
 		]);
-//		$fields->insertBefore('Enable', Forms\HeaderField::create('_fieldType', 'Field Type: '.$this->singular_name(),1));
+
 		$fields->unshift( Forms\HeaderField::create('_fieldType', 'Field Type: '.$this->singular_name(),1));
 		$fields->dataFieldByName('Name')->setDescription('This is will be used in notifications, and as the column title on exports')
 			->setTitle('Field Name');
@@ -114,7 +112,6 @@ class Field extends DataObject
 		{
 			$actionsData[] = $fieldAction->getActionData();
 		}
-$fields->addFieldToTab('Root.Validation', Forms\LiteralField::create('_validation', '<div style="width:100%;overflow:scroll;"><pre><xmp>'.print_r(json_encode($actionsData, JSON_PRETTY_PRINT),1).'</xmp></pre></div>'));
 
 		return $fields;
 	}
@@ -207,7 +204,7 @@ $fields->addFieldToTab('Root.Validation', Forms\LiteralField::create('_validatio
 					'fieldType' => $this->singular_name(),
 					'callback' => 'actionHideField',
 				],
-				'conditions' => $onLoadCondition,
+				'conditions' => [$onLoadCondition],
 				'conditionsHash' => 'onFormLoad'
 			];
 		}
@@ -218,6 +215,10 @@ $fields->addFieldToTab('Root.Validation', Forms\LiteralField::create('_validatio
 	public function validate()
 	{
 		$result = parent::validate();
+		if (!trim($this->Name))
+		{
+			$result->addFieldError('Name','A Field Name is required');
+		}
 		// preliminary check for duplicate field name
 		$otherFields = Field::get()->Exclude('ID',$this->ID)->Filter('Name',$this->Name);
 		if ($otherFields->Count())
@@ -324,6 +325,7 @@ $fields->addFieldToTab('Root.Validation', Forms\LiteralField::create('_validatio
 	{
 		$extraClasses = explode(',',$this->CssClasses);
 		$extraClasses[] = 'form-builder-'.strtolower(Convert::raw2htmlid(ClassInfo::shortName($this->getClassName())));
+		$extraClasses[] = 'form-builder-field-'.$this->ID;
 		foreach($this->invokeWithExtensions('updateExtraCssClasses',$extraClasses) as $update)
 		{
 			$extraClasses = array_merge($extraClasses, $update);
@@ -332,7 +334,7 @@ $fields->addFieldToTab('Root.Validation', Forms\LiteralField::create('_validatio
 		return $as_string ? implode(' ',$extraClasses) : $extraClasses;
 	}
 
-	public function updateBaseField($field, $validator = null)
+	public function updateBaseField($field, &$validator = null, $defaults = null)
 	{
 		$extraClasses = $this->ExtraCssClasses();
 		if (count($extraClasses))
@@ -342,10 +344,10 @@ $fields->addFieldToTab('Root.Validation', Forms\LiteralField::create('_validatio
 		$field->FormBuilderField = $this;
 	}
 
-	public function getBaseField(&$validator = null)
+	public function getBaseField(&$validator = null, $defaults = null)
 	{
 		$field = false;
-		$this->extend('updateBaseField', $field, $validator);
+		$this->extend('updateBaseField', $field, $validator, $defaults);
 		if (!$field)
 		{
 			user_error('Method '.__FUNCTION__.' must be implemented on class '.$this->getClassName());
@@ -389,7 +391,12 @@ $fields->addFieldToTab('Root.Validation', Forms\LiteralField::create('_validatio
 		$rawValue = $value;
 		$submissionFieldValue = Injector::inst()->create($this->Config()->get('submission_value_class'));
 		$submissionFieldValue->FormBuilderFieldID = $this->ID;
-		$submissionFieldValue->SortOrder = $this->SortOrder;
+		$sortOrder = $this->SortOrder;
+		if ( ($this->Container()->Exists()) && ($this->Container() instanceof Field) )
+		{
+			$sortOrder = ceil($this->Container()->SortOrder) + ($sortOrder * 0.1);
+		}
+		$submissionFieldValue->SortOrder = $sortOrder;
 		$submissionFieldValue->Name = $this->Name;
 		$submissionFieldValue->Label = $this->Label;
 		$submissionFieldValue->Required = $this->Required;

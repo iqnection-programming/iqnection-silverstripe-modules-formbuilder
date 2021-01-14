@@ -112,15 +112,24 @@ class SendEmailFormAction extends FormAction
 		}
 		if (trim($this->To))
 		{
-			$email->addTo(trim($this->To));
+			foreach(explode(',',$this->To) as $to)
+			{
+				$email->addTo(trim($to));
+			}
 		}
 		if (trim($this->CC))
 		{
-			$email->setCC(trim($this->CC));
+			foreach(explode(',',$this->CC) as $CC)
+			{
+				$email->addCC(trim($CC));
+			}
 		}
 		if (trim($this->BCC))
 		{
-			$email->setBCC(trim($this->BCC));
+			foreach(explode(',',$this->BCC) as $BCC)
+			{
+				$email->addBCC(trim($BCC));
+			}
 		}
 		foreach($this->EmailFields() as $emailField)
 		{

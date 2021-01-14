@@ -10,19 +10,19 @@ class RadioFieldSet extends Field
 {
 	private static $table_name = 'FormBuilderRadioFieldSet';
 	private static $singular_name = 'Radio Buttons';
-	
+
 	private static $extensions = [
 		\IQnection\FormBuilder\Extensions\SelectField::class
 	];
-	
+
 	private static $db = [
 		'HorizontalLayout' => 'Boolean'
 	];
-	
+
 	private static $defaults = [
 		'HorizontalLayout' => 0
 	];
-	
+
 	public function getCMSFields()
 	{
 		$fields = parent::getCMSFields();
@@ -34,7 +34,7 @@ class RadioFieldSet extends Field
 		}
 		return $fields;
 	}
-	
+
 	public function validate()
 	{
 		$result = parent::validate();
@@ -44,7 +44,7 @@ class RadioFieldSet extends Field
 		}
 		return $result;
 	}
-	
+
 	public function ExtraCssClasses($as_string = false)
 	{
 		$classes = parent::ExtraCssClasses($as_string);
@@ -54,8 +54,8 @@ class RadioFieldSet extends Field
 		}
 		return $classes;
 	}
-	
-	public function getBaseField(&$validator = null)
+
+	public function getBaseField(&$validator = null, $defaults = null)
 	{
 		$selectedDefault = $this->Options()->Filter('DefaultSelected',1)->First();
 		$field = Forms\OptionSetField::create($this->getFrontendFieldName());
@@ -64,9 +64,9 @@ class RadioFieldSet extends Field
 			$field->setValue($selectedDefault->ID);
 		}
 		$field->setSource($this->getFieldSourceArray());
-		return $field;		
+		return $field;
 	}
-	
+
 	public function getOptionjQuerySelector($option, $valueSelector = false)
 	{
 		$selector = $this->getjQuerySelector();

@@ -53,7 +53,6 @@ class FieldGroupExtension extends DataExtension
 				$this->owner->Fields(),
 				Forms\GridField\GridFieldConfig_RecordEditor::create(100)
 					->addComponent(new GridFieldOrderableRows('SortOrder'))
-//					->addComponent(new GridFieldSortableRows('SortOrder'))
 					->addComponent($GridFieldAddNewMultiClass = new GridFieldAddNewMultiClass())
 					->removeComponentsByType(Forms\GridField\GridFieldAddNewButton::class)
 					->addComponent(new GridFieldDuplicateAction())
@@ -142,14 +141,14 @@ class FieldGroupExtension extends DataExtension
 		return $Fields;
 	}
 
-	public function generateFormFields($validator = null)
+	public function generateFormFields($validator, $defaults)
 	{
 		$fields = [];
 		foreach($this->owner->Fields()->Filter('Enable',1) as $field)
 		{
-			if ($baseField = $field->getBaseField($validator))
+			if ($baseField = $field->getBaseField($validator, $defaults))
 			{
-				$field->invokeWithExtensions('updateBaseField', $baseField, $validator);
+				$field->invokeWithExtensions('updateBaseField', $baseField, $validator, $defaults);
 				$fields[] = $baseField;
 			}
 		}

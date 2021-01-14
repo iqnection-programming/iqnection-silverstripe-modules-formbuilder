@@ -28,7 +28,7 @@ class DropdownField extends Field
 		return $fields;
 	}
 
-	public function getBaseField(&$validator = null)
+	public function getBaseField(&$validator = null, $defaults = null)
 	{
 		$field = Forms\DropdownField::create($this->getFrontendFieldName());
 		if ($this->EmptyString)

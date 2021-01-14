@@ -31,7 +31,11 @@ class Submission extends DataObject
 	];
 	
 	private static $default_sort = 'Created DESC';
-	
+
+	private static $cascade_deletes = [
+		'SubmissionFieldValues'
+	];
+
 	public function CanCreate($member = null, $context = [])
 	{
 		return false;
@@ -68,7 +72,7 @@ class Submission extends DataObject
 		{
 			$fields->addFieldToTab('Root.Main', $submissionValue->getReadonlyField());
 		}
-		$fields->addFieldToTab('Root.Cache', Forms\LiteralField::create('cachedSubmission', '<div style="max-width:100%;"><pre><xmp>'.print_r(unserialize($this->FormData),1).'</xmp></pre></div>'));
+
 		return $fields;
 	}
 	

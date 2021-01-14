@@ -36,7 +36,7 @@ class FormHandler extends Extension
 	{
 		$formBuilder = $form->FormBuilder;
 		$response = $this->owner->getResponse();
-		$formBuilder->processFormData($data, $form, $this->owner);//$this->owner->getRequest(), $response);
+		$formBuilder->processFormData($data, $form, $this->owner);
 		if ($this->owner->getResponse()->isFinished())
 		{
 			return $this->owner->getResponse();

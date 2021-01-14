@@ -20,10 +20,7 @@ class SelectFieldOptionAction extends DataObject
 	private static $singular_name = 'Action';
 	private static $plural_name = 'Actions';
 	private static $hide_ancestor = SelectFieldOptionAction::class;
-	
-	private static $db = [
-	];
-	
+
 	private static $has_one = [
 		'Parent' => SelectFieldOption::class
 	];
@@ -111,22 +108,8 @@ class SelectFieldOptionAction extends DataObject
 					}
 				]
 			]);
-			
-//			$watchedFieldIDs = $this->Children()->Column('ID');
-//			if (count($watchedFieldIDs))
-//			{
-//				foreach(Field::get()->byIDs($watchedFieldIDs) as $dataField)
-//				{
-//					if ($dataField->hasExtension(SelectField::class))
-//					{
-//						$fields->addFieldToTab('Root.Field Selections', Forms\CheckboxsetField::create('_ChildSelections['.$dataField->ID.']',$dataField->Name)
-//							->setSource($dataField->Options()->map('ID','getOptionLabel'))
-//							->setDefaultItems($this->ChildSelections()->Column('ID')));
-//					}
-//				}
-//			}
 		}
-$fields->addFieldToTab('Root.Validation', Forms\LiteralField::create('_validation', '<div style="width:100%;overflow:scroll;"><pre><xmp>'.print_r($this->getActionData(),1).'</xmp></pre></div>'));
+
 		return $fields;
 	}
 	

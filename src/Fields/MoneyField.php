@@ -36,7 +36,7 @@ class MoneyField extends TextField
 		return $fields;
 	}
 
-	public function getBaseField(&$validator = null)
+	public function getBaseField(&$validator = null, $defaults = null)
 	{
 		$field = Forms\NumericField::create($this->getFrontendFieldName())
 			->setHTML5(true)

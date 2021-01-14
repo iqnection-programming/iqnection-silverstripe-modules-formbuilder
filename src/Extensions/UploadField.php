@@ -111,7 +111,7 @@ class UploadField extends DataExtension
 	public function updatePreparedSubmittedValue(&$value)
 	{
 		// since this is an array, and we need access to the SubmissionFieldValue to save the file
-		// we'll just set the object value to null so it safely sets teh field
+		// we'll just set the object value to null so it safely sets the field
 		$value = null;
 	}
 

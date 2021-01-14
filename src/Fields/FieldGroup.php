@@ -56,9 +56,9 @@ class FieldGroup extends Field
 		return $fields;
 	}
 
-	public function getBaseField(&$validator = null)
+	public function getBaseField(&$validator = null, $defaults = null)
 	{
-		$fieldGroup = Forms\FieldGroup::create($this->Name.'_group', $this->generateFormFields($validator));
+		$fieldGroup = Forms\FieldGroup::create($this->Name.'_group', $this->generateFormFields($validator, $defaults));
 		$fieldGroup->setTitle($this->Name);
 		foreach($fieldGroup->FieldList() as $field)
 		{
@@ -97,6 +97,11 @@ class FieldGroup extends Field
 			$fields[] = $field->Name.': '.$field->dbObject('ShowInSubmissionsTable')->Nice();
 		}
 		return FieldType\DBField::create_field(FieldType\DBHTMLVarchar::class, implode("<br />", $fields));
+	}
+
+	public function getjQuerySelector()
+	{
+		return '.form-builder-field-'.$this->ID;
 	}
 
 }

@@ -67,12 +67,9 @@ class FormBuilder extends DataObject implements Flushable
 
 	public static function flush()
 	{
-		if ($_GET['flush'] == 'forms')
+		foreach(FormBuilder::get() as $formBuilder)
 		{
-			foreach(FormBuilder::get() as $formBuilder)
-			{
-				$formBuilder->clearJsCache();
-			}
+			$formBuilder->clearJsCache();
 		}
 	}
 
@@ -87,12 +84,12 @@ class FormBuilder extends DataObject implements Flushable
 				->setValue(ShortcodeParser::generateShortcode($this))
 				->setReadonly(true)
 				->setAttribute('onclick', 'javascript:select(this);')
-				->setDescription('Copy this short code and paste on any page where you want to display this form<br />
-<a href="'.FormBuilderPreview::singleton()->PreviewLink($this->ID).'" target="_blank">Preview Form</a>'));
+				->setDescription('Copy this short code and paste on any page where you want to display this form<br /><a href="'.FormBuilderPreview::singleton()->PreviewLink($this->ID).'" target="_blank">Preview Form</a>'));
 		}
 		if ($submissions_fg = $fields->dataFieldByName('Submissions'))
 		{
 			$submissions_fg->getConfig()->addComponent(new SubmissionsExportButton());
+			$submissions_fg->getConfig()->addComponent(new Forms\GridField\GridFieldDeleteAction());
 			$submissions_fg->getConfig()->removeComponentsByType(Forms\GridField\GridFieldAddExistingAutocompleter::class);
 			if ($columns = $submissions_fg->getConfig()->getComponentsByType(Forms\GridField\GridFieldDataColumns::class)->First())
 			{
@@ -136,8 +133,7 @@ class FormBuilder extends DataObject implements Flushable
 		{
 			$ConfirmationTextField->addExtraClass('stacked');
 		}
-$fields->addFieldToTab('Root.FieldActions', Forms\LiteralField::create('_explain', '<div style="width:100%;overflow:scroll;"><div style="padding-bottom:6px;border-bottom:1px solid #999;">'.implode('</div><div style="padding-bottom:6px;;border-bottom:1px solid #999;">',$fieldAction_texts).'</div></div>'));
-$fields->addFieldToTab('Root.FieldActions', Forms\LiteralField::create('_validation', '<div style="width:100%;overflow:scroll;"><pre><xmp>'.print_r(json_encode($this->getFrontEndJS(),JSON_PRETTY_PRINT),1).'</xmp></pre></div>'));
+		$fields->addFieldToTab('Root.FieldActions', Forms\LiteralField::create('_explain', '<div style="width:100%;overflow:scroll;"><div style="padding-bottom:6px;border-bottom:1px solid #999;">'.implode('</div><div style="padding-bottom:6px;;border-bottom:1px solid #999;">',$fieldAction_texts).'</div></div>'));
 
 		return $fields;
 	}
@@ -198,8 +194,13 @@ $fields->addFieldToTab('Root.FieldActions', Forms\LiteralField::create('_validat
 				$controller = Controller::curr();
 			}
 
+			if (!$defaults)
+			{
+				$defaults = $controller->getRequest()->requestVars();
+			}
+
 			$validator = Validator::create();
-			$fields = Forms\FieldList::create($this->generateFormFields($validator));
+			$fields = Forms\FieldList::create($this->generateFormFields($validator, $defaults));
 			$actions = Forms\FieldList::create(
 				Forms\FormAction::create('handleForm',$this->SubmitText ? $this->SubmitText : $this->Config()->get('default_submit_text'))
 			);
@@ -217,9 +218,9 @@ $fields->addFieldToTab('Root.FieldActions', Forms\LiteralField::create('_validat
 				->setHTMLID($this->getFormHTMLID());
 			$this->_form->FormBuilder = $this;
 
-			if ($controller->getRequest()->isPOST())
+			if ($controller->getRequest()->requestVar('form-builder-submitted'))
 			{
-				$this->_form->setSessionData($controller->getRequest()->postVars());
+				$this->_form->setSessionData($defaults);
 			}
 			else
 			{
@@ -238,6 +239,7 @@ $fields->addFieldToTab('Root.FieldActions', Forms\LiteralField::create('_validat
 			$controller->invokeWithExtensions('onBeforeFormBuilderRequirements', $this);
 			$this->includeRequirements($controller);
 			$controller->invokeWithExtensions('onAfterFormBuilderRequirements', $this);
+			$fields->push(Forms\HiddenField::create('form-builder-submitted','')->setValue('1'));
 		}
 
 		$this->extend('updateForm', $this->_form);
@@ -274,19 +276,26 @@ $fields->addFieldToTab('Root.FieldActions', Forms\LiteralField::create('_validat
 		{
 			$scripts['validatorConfig']['useNospam'] = true;
 		}
-		$formLoadStateCondition = [[
+		$formLoadStateCondition = [
 			'selector' => '[data-form-builder-id="'.$this->ID.'"]',
 			'state' => 'Loaded',
 			'stateCallback' => 'stateOnFormLoad',
 			'selections' => [],
-		]];
+		];
 		// collect all hidden fields and set with the form load action
 		foreach($this->FieldsFlat() as $Field)
 		{
 			$fieldSelector = $Field->getjQuerySelector();
 			foreach($Field->getOnLoadFieldActions($formLoadStateCondition) as $baseAction)
 			{
-				$scripts['fieldActions'][] = $baseAction;
+				if (isset($baseAction[0]))
+				{
+					$scripts['fieldActions'] = array_merge($scripts['fieldActions'], $baseAction);
+				}
+				else
+				{
+					$scripts['fieldActions'][] = $baseAction;
+				}
 			}
 			foreach($Field->FieldActions() as $fieldAction)
 			{
@@ -310,7 +319,14 @@ $fields->addFieldToTab('Root.FieldActions', Forms\LiteralField::create('_validat
 					}
 					foreach($fieldOption->getOnLoadFieldSelectionActions($formLoadStateCondition) as $baseAction)
 					{
-						$scripts['fieldActions'][] = $baseAction;
+						if (isset($baseAction[0]))
+						{
+							$scripts['fieldActions'] = array_merge($scripts['fieldActions'], $baseAction);
+						}
+						else
+						{
+							$scripts['fieldActions'][] = $baseAction;
+						}
 					}
 				}
 			}

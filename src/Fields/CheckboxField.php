@@ -32,7 +32,7 @@ class CheckboxField extends Field
 		return $fields;
 	}
 
-	public function getBaseField(&$validator = null)
+	public function getBaseField(&$validator = null, $defaults = null)
 	{
 		$field = Forms\CheckboxField::create($this->getFrontendFieldName());
 		if ($this->DefaultChecked)

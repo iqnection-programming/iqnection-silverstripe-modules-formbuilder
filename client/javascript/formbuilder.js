@@ -236,9 +236,23 @@ window._formBuilders = [];
 				if (!result) {
 					return this.actionShowField(actionData, !result);
 				}
-				$(actionData.selector).prop('checked', false);
+				if ($(actionData.selector).is('input,textarea,select')) {
+					if ($(actionData.selector).is('[type="checkbox"],[type="radio"]')) {
+						// unchech checkboxes and radios
+						$(actionData.selector).prop('checked', false);
+					} else {
+						// clear out text inputs and dropdowns
+						$(actionData.selector).val('');
+					}
+				} else {
+					// unchech checkboxes and radios
+					$(actionData.selector).find('[type="checkbox"],[type="radio"]').prop('checked', false);
+					// clear out text inputs and dropdowns
+					$(actionData.selector).find('input,select,textarea').not('[type="checkbox"],[type="radio"]').val('');
+				}
 				var $target = this._getFieldContainer(actionData.selector);
 				$target.hide();
+				return this;
 			},
 			// adds a selection option if the result is true
 			actionShowFieldOption: function(actionData, result) {
@@ -271,11 +285,28 @@ window._formBuilders = [];
 				}
 				$target.hide();
 			},
+			// form state functions
 			stateOnFormLoad: function(condition) {
 				// if we're calling this script, then the form is loaded
+
 				return this._formLoaded;
 			},
 			// field state functions
+			stateMatchAny: function(condition) {
+				console.log(condition);
+				if ((condition.config.matchValue !== undefined) && (condition.config.matchValue !== undefined) && (condition.config.matchValue.length)) {
+					var values = Object.values(condition.config.matchValue);
+					var fieldValue = $(condition.selector).first().val().toString();
+					console.log('field Value', fieldValue);
+					for(var i=0; i<values.length; i++) {
+						if (fieldValue === values[i].toString()) {
+							console.log('true');
+							return true;
+						}
+					}
+				}
+				return false;
+			},
 			stateMatch: function(condition) {
 				var $conditionField = $(condition.selector);
 				var $conditionFieldValue = $conditionField.first().val();

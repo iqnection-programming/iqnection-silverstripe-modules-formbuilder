@@ -10,21 +10,21 @@ class ListboxField extends Field
 {
 	private static $table_name = 'FormBuilderListboxField';
 	private static $singular_name = 'Listbox';
-	
+
 	private static $extensions = [
 		SelectField::class
 	];
-	
+
 	private static $db = [
 		'MinSelections' => 'Int',
 		'MaxSelections' => 'Int',
 	];
-	
+
 	private static $defaults = [
 		'MinSelections' => 0,
 		'MaxSelections' => 0,
 	];
-	
+
 	public function getCMSFields()
 	{
 		$fields = parent::getCMSFields();
@@ -49,7 +49,7 @@ class ListboxField extends Field
 		}
 		return $result;
 	}
-	
+
 	public function validateFormValue($value)
 	{
 		$errors = parent::validateFormValue($value);
@@ -64,8 +64,8 @@ class ListboxField extends Field
 		}
 		return $errors;
 	}
-	
-	public function getBaseField(&$validator = null)
+
+	public function getBaseField(&$validator = null, $defaults = null)
 	{
 		$field = Forms\ListboxField::create($this->getFrontendFieldName());
 		$source = $this->getFieldSourceArray();
@@ -81,16 +81,16 @@ class ListboxField extends Field
 		{
 			$field->setDefaultItems($defaultSelection->Column('ID'));
 		}
-		return $field;		
+		return $field;
 	}
-	
+
 	public function getJavaScriptValidatorName()
 	{
 		$name = parent::getJavaScriptValidatorName();
 		$name .= '[]';
 		return $name;
 	}
-	
+
 	public function getFieldJsValidation()
 	{
 		$rules = parent::getFieldJsValidation();
@@ -104,7 +104,7 @@ class ListboxField extends Field
 		}
 		return $rules;
 	}
-	
+
 	public function getOptionjQuerySelector($option)
 	{
 		return $this->getjQuerySelector().' option[value="'.$option->Value.'"]';

@@ -9,17 +9,17 @@ class EmailField extends Field
 {
 	private static $table_name = 'FormBuilderEmailField';
 	private static $singular_name = 'Email';
-	
+
 	private static $extensions = [
 		\IQnection\FormBuilder\Extensions\InputField::class
 	];
-	
-	public function getBaseField(&$validator = null)
+
+	public function getBaseField(&$validator = null, $defaults = null)
 	{
 		$field = Forms\EmailField::create($this->getFrontendFieldName());
-		return $field;		
+		return $field;
 	}
-	
+
 	public function getFieldJsValidation()
 	{
 		$rules = parent::getFieldJsValidation();

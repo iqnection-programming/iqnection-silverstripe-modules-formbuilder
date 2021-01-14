@@ -56,7 +56,8 @@ class FormAction extends DataObject
 		$fields = parent::getCMSFields();
 		$fields->removeByName([
 			'ConditionFields',
-			'ConditionFieldSelections'
+			'ConditionFieldSelections',
+			'FormBuilderID'
 		]);
 		$fields->dataFieldByName('Name')->setDescription('For internal purposes only');
 		$fields->replaceField('Event', Forms\DropdownField::create('Event','Event')
@@ -109,7 +110,7 @@ class FormAction extends DataObject
 				]
 			]);
 		}
-$fields->addFieldToTab('Root.Validation', Forms\LiteralField::create('_validation', '<div style="width:100%;overflow:scroll;">'.($this->Explain()).'</div>'));
+
 		return $fields;
 	}
 
@@ -168,7 +169,6 @@ $fields->addFieldToTab('Root.Validation', Forms\LiteralField::create('_validatio
 		// defaults to true
 		$result = true;
 		// all conditions must be met
-
 		foreach($this->ConditionFields() as $child)
 		{
 			if (!$this->testCondition($child->State, $child, $submittedValues))
@@ -244,6 +244,7 @@ $fields->addFieldToTab('Root.Validation', Forms\LiteralField::create('_validatio
 	public function onBeforeDelete()
 	{
 		parent::onBeforeDelete();
+		// remove relation links to the records aren't deleted
 		$this->ConditionFields()->removeAll();
 		$this->ConditionFieldSelections()->removeAll();
 	}

@@ -120,18 +120,8 @@ class FieldAction extends DataObject
 			];
 			$editableColumns->setDisplayFields($displayFields);
 		}
-$fields->addFieldToTab('Root.Validation', Forms\LiteralField::create('_validation', '<div style="width:100%;overflow:scroll;"><pre><xmp>'.print_r(json_encode($this->getActionData(), JSON_PRETTY_PRINT),1).'</xmp></pre></div>'));
-		return $fields;
-	}
 
-	public function validate()
-	{
-		$result = parent::validate();
-//		if ( ($this->Exists()) && (!$this->Children()->Count()) )
-//		{
-//			$result->addError('You must add at least one condition');
-//		}
-		return $result;
+		return $fields;
 	}
 
 	public function isFieldTypeAllowed($fieldType)
@@ -222,11 +212,6 @@ $fields->addFieldToTab('Root.Validation', Forms\LiteralField::create('_validatio
 		return false;
 	}
 
-	public function onBeforeWrite()
-	{
-		parent::onBeforeWrite();
-	}
-
 	public function onAfterWrite()
 	{
 		parent::onAfterWrite();
@@ -239,10 +224,6 @@ $fields->addFieldToTab('Root.Validation', Forms\LiteralField::create('_validatio
 			{
 				if ($record = $this->Children()->byId($id))
 				{
-//					foreach($extraFields as $extraFieldName => &$extraFieldValue)
-//					{
-//						$extraFieldValue = FieldType\DBField::create_field($extraFieldType, $extraFieldValue)->setValue($extraFieldValue)->getValue();
-//					}
 					$this->Children()->add($record, $extraFields);
 				}
 			}
@@ -349,6 +330,7 @@ $fields->addFieldToTab('Root.Validation', Forms\LiteralField::create('_validatio
 	public function onBeforeDelete()
 	{
 		parent::onBeforeDelete();
+		// remove relation links so the records aren't deleted
 		$this->Children()->removeAll();
 		$this->ChildSelections()->removeAll();
 	}

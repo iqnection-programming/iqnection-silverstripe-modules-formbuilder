@@ -9,22 +9,22 @@ class CheckboxGroupField extends Field
 {
 	private static $table_name = 'FormBuilderCheckboxGroupField';
 	private static $singular_name = 'Checkbox Group';
-	
+
 	private static $extensions = [
 		\IQnection\FormBuilder\Extensions\SelectField::class
 	];
-	
+
 	private static $db = [
 		'HorizontalLayout' => 'Boolean',
 		'MinSelections' => 'Int',
 		'MaxSelections' => 'Int',
 	];
-	
+
 	private static $defaults = [
 		'MinSelections' => 0,
 		'MaxSelections' => 0,
 	];
-	
+
 	public function validate()
 	{
 		$result = parent::validate();
@@ -34,7 +34,7 @@ class CheckboxGroupField extends Field
 		}
 		return $result;
 	}
-	
+
 	public function validateFormValue($value)
 	{
 		$errors = parent::validateFormValue($value);
@@ -49,7 +49,7 @@ class CheckboxGroupField extends Field
 		}
 		return $errors;
 	}
-	
+
 	public function ExtraCssClasses($as_string = false)
 	{
 		$classes = parent::ExtraCssClasses($as_string);
@@ -59,8 +59,8 @@ class CheckboxGroupField extends Field
 		}
 		return $classes;
 	}
-	
-	public function getBaseField(&$validator = null)
+
+	public function getBaseField(&$validator = null, $defaults = null)
 	{
 		$defaults = $this->Options()->Filter('DefaultSelected',1);
 		$field = Forms\CheckboxSetField::create($this->getFrontendFieldName());
@@ -69,22 +69,22 @@ class CheckboxGroupField extends Field
 			$field->setDefaultItems($defaults->Column('ID'));
 		}
 		$field->setSource($this->getFieldSourceArray());
-		return $field;		
+		return $field;
 	}
-	
+
 	public function getJavaScriptValidatorName()
 	{
 		$name = '[name^="'.$this->getFrontendFieldName().'["]';
 		return $name;
 	}
-	
+
 	public function getjQuerySelector()
 	{
 		$selector = '[name^="'.$this->getFrontendFieldName().'["]';
 		$this->extend('updatejQuerySelector', $selector);
 		return $selector;
 	}
-	
+
 	public function getOptionjQuerySelector($option)
 	{
 		return $this->getjQuerySelector().'[value="'.$option->ID.'"]';

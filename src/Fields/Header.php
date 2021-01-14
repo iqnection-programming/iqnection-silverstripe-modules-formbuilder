@@ -43,18 +43,7 @@ class Header extends Field
 		return FieldType\DBField::create_field(FieldType\DBHTMLVarchar::class, $text);
 	}
 
-	public function validate()
-	{
-		$result = parent::validate();
-
-//		if (!$this->Content)
-//		{
-//			$result->addError('Please add heading text');
-//		}
-		return $result;
-	}
-
-	public function getBaseField(&$validator = null)
+	public function getBaseField(&$validator = null, $defaults = null)
 	{
 		$Content = !empty($this->owner->Content) ? $this->owner->Content : $this->owner->Name;
 		$field = Forms\HeaderField::create($this->getFrontendFieldName(), $Content, substr($this->Type, -1, 1));

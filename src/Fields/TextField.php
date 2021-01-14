@@ -10,17 +10,17 @@ class TextField extends Field
 {
 	private static $table_name = 'FormBuilderTextField';
 	private static $singular_name = 'Text';
-	
+
 	private static $extensions = [
 		\IQnection\FormBuilder\Extensions\InputField::class
 	];
-	
+
 	private static $db = [
 		'MinSize' => 'Int',
 		'MaxSize' => 'Int',
 		'Format' => 'Varchar(255)',
 	];
-	
+
 	/**
 	 * Array of formats where the key is the name and the value is the method to call for validation
 	 * the method must be callable in IQnection\FormBuilder\Fields\TextField class
@@ -31,7 +31,7 @@ class TextField extends Field
 		'validateDecimal' => 'Decimal',
 		'validateInteger' => 'Integer',
 	];
-	
+
 	public function getCMSFields()
 	{
 		$fields = parent::getCMSFields();
@@ -49,7 +49,7 @@ class TextField extends Field
 			->setDescription('(Optional)'));
 		return $fields;
 	}
-	
+
 	public function validateFormValue($value)
 	{
 		$errors = parent::validateFormValue($value);
@@ -64,13 +64,13 @@ class TextField extends Field
 		}
 		return $errors;
 	}
-	
-	public function getBaseField(&$validator = null)
+
+	public function getBaseField(&$validator = null, $defaults = null)
 	{
 		$field = Forms\TextField::create($this->getFrontendFieldName());
-		return $field;		
+		return $field;
 	}
-	
+
 	public function validatePhone($value)
 	{
 		$numbers = preg_replace('/[\(\)\-\s]/','',$value);
@@ -84,7 +84,7 @@ class TextField extends Field
 		}
 		return $errors;
 	}
-	
+
 	public function validateNumber($value)
 	{
 		if (!is_numeric($numbers))
@@ -93,7 +93,7 @@ class TextField extends Field
 		}
 		return $errors;
 	}
-	
+
 	public function validateDecimal($value)
 	{
 		if (!is_numeric($numbers))
@@ -102,7 +102,7 @@ class TextField extends Field
 		}
 		return $errors;
 	}
-	
+
 	public function validateInteger($value)
 	{
 		if (!is_int($numbers))
@@ -111,7 +111,7 @@ class TextField extends Field
 		}
 		return $errors;
 	}
-	
+
 	public function getFieldJsValidation()
 	{
 		$rules = parent::getFieldJsValidation();

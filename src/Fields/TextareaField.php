@@ -43,7 +43,7 @@ class TextareaField extends Field
 		return $fields;
 	}
 
-	public function getBaseField(&$validator = null)
+	public function getBaseField(&$validator = null, $defaults = null)
 	{
 		$field = Forms\TextareaField::create($this->getFrontendFieldName())->setRows($this->Rows);
 		switch($this->Counter)
@@ -57,7 +57,7 @@ class TextareaField extends Field
 				$field->setAttribute('data-count','character');
 				break;
 		}
-		$this->invokeWithExtensions('updateBaseField', $field);
+		$this->invokeWithExtensions('updateBaseField', $field, $validator, $defaults);
 		return $field;
 	}
 
