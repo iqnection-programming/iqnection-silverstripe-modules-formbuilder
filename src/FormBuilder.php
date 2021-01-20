@@ -20,10 +20,12 @@ use Symbiote\GridFieldExtensions\GridFieldAddNewMultiClass;
 use UndefinedOffset\SortableGridField\Forms\GridFieldSortableRows;
 use SwiftDevLabs\DuplicateDataObject\Forms\GridField\GridFieldDuplicateAction;
 use IQnection\FormBuilder\Control\FormBuilderPreview;
-use SilverStripe\Core\Flushable;
 use IQnection\FormBuilder\Forms\GridField\SubmissionsExportButton;
+use IQnection\FormBuilder\Extensions\Cacheable;
+use IQnection\FormBuilder\Cache\Cache;
+use SilverStripe\ORM\FieldType;
 
-class FormBuilder extends DataObject implements Flushable
+class FormBuilder extends DataObject
 {
 	private static $table_name = 'FormBuilder';
 	private static $singular_name = 'Form';
@@ -33,14 +35,14 @@ class FormBuilder extends DataObject implements Flushable
 	private static $use_nospam = true;
 
 	private static $extensions = [
-		FieldGroupExtension::class
+		FieldGroupExtension::class,
+		Cacheable::class
 	];
 
 	private static $db = [
 		'Title' => 'Varchar(255)',
 		'SubmitText' => 'Varchar(50)',
 		'ConfirmationText' => 'HTMLText',
-		'JsValidationCache' => 'Text'
 	];
 
 	private static $has_many = [
@@ -64,14 +66,8 @@ class FormBuilder extends DataObject implements Flushable
 	];
 
 	protected $_form;
-
-	public static function flush()
-	{
-		foreach(FormBuilder::get() as $formBuilder)
-		{
-			$formBuilder->clearJsCache();
-		}
-	}
+	public static $_original_objects = [];
+	public static $_duplicated_objects = [];
 
 	public function getCMSFields()
 	{
@@ -161,13 +157,56 @@ class FormBuilder extends DataObject implements Flushable
 		}
 	}
 
+	public function onAfterWrite()
+	{
+		parent::onAfterWrite();
+		$this->clearAllCache();
+	}
+
+	public function onBeforeDuplicate($original, $doWrite, $relations)
+	{
+		$baseTitle = 'Copy of '.$original->Title;
+		$this->Title = $baseTitle;
+		$count = 0;
+		while(FormBuilder::get()->Exclude('ID', $this->ID)->Filter('Title', $this->Title)->Count())
+		{
+			$count++;
+			$this->Title = $baseTitle.' - '.$count;
+		}
+	}
+
+	public function onAfterDuplicate($original, $doWrite, $relations)
+	{
+		foreach($this->Actions() as $formBuilderAction)
+		{
+			$formBuilderAction->invokeWithExtensions('onAfterDuplicate_FormBuilder');
+		}
+
+		foreach($this->FieldsFlat() as $formBuilderField)
+		{
+			$formBuilderField->invokeWithExtensions('onAfterDuplicate_FormBuilder');
+			// copying a field prepends the field with "Copy of ", we need to remove that number
+			$formBuilderField->Name = trim(preg_replace('/^Copy of/','',$formBuilderField->Name));
+			$formBuilderField->write();
+		}
+	}
+
+	public function clearAllCache()
+	{
+		$this->clearFormCache();
+		$this->clearJsCache();
+		return $this;
+	}
+
+	public function clearFormCache()
+	{
+		$result = Cache::delete($this->CacheName('form'));
+		return $this;
+	}
+
 	public function clearJsCache()
 	{
-		if ( (!empty($this->JsValidationCache)) && ($this->Exists()) )
-		{
-			$this->JsValidationCache = null;
-			$this->write();
-		}
+		Cache::delete($this->CacheName('formJs'));
 		return $this;
 	}
 
@@ -199,8 +238,25 @@ class FormBuilder extends DataObject implements Flushable
 				$defaults = $controller->getRequest()->requestVars();
 			}
 
-			$validator = Validator::create();
-			$fields = Forms\FieldList::create($this->generateFormFields($validator, $defaults));
+			$cacheName = $this->CacheName('form');
+			$validator = $fields = false;
+			try {
+				if ( ($cachedForm = Cache::get($cacheName)) && (!Director::isDev()) )
+				{
+					$cachedForm = unserialize($cachedForm);
+					$validator = $cachedForm['validator'];
+					$fields = $cachedForm['fields'];
+				}
+			} catch (\Exception $e) {}
+			if ( (!$validator) || (!$fields) )
+			{
+				$validator = Validator::create();
+				$fields = Forms\FieldList::create($this->generateFormFields($validator, $defaults));
+				$cachedForm = [];
+				$cachedForm['validator'] = $validator;
+				$cachedForm['fields'] = $fields;
+				Cache::set($cacheName, serialize($cachedForm));
+			}
 			$actions = Forms\FieldList::create(
 				Forms\FormAction::create('handleForm',$this->SubmitText ? $this->SubmitText : $this->Config()->get('default_submit_text'))
 			);
@@ -216,6 +272,7 @@ class FormBuilder extends DataObject implements Flushable
 				->setAttribute('data-form-builder-id', $this->ID)
 				->addExtraClass('form-builder')
 				->setHTMLID($this->getFormHTMLID());
+
 			$this->_form->FormBuilder = $this;
 
 			if ($controller->getRequest()->requestVar('form-builder-submitted'))
@@ -233,7 +290,7 @@ class FormBuilder extends DataObject implements Flushable
 				{
 					$errors[] = $validationError['message'];
 				}
-				$this->_form->setMessage(implode('<br />', $errors));
+				$this->_form->setMessage(FieldType\DBField::create_field(FieldType\DBHTMLText::class,implode('<br />', $errors)));
 			}
 
 			$controller->invokeWithExtensions('onBeforeFormBuilderRequirements', $this);
@@ -257,10 +314,17 @@ class FormBuilder extends DataObject implements Flushable
 
 	public function getFrontEndJS()
 	{
-		$cachedScript = json_decode($this->JsValidationCache,1);
-		if ( (is_array($cachedScript)) && (count($cachedScript)) && (json_last_error() == JSON_ERROR_NONE) && (!Director::isDev()) )
+		$cacheName = $this->CacheName('formJs');
+		if ($cachedScript = Cache::get($cacheName))
 		{
-			return $cachedScript;
+			try {
+				$cachedScript = unserialize($cachedScript);
+				if ( (is_array($cachedScript)) && (count($cachedScript)) && (!Director::isDev()) )
+				{
+
+					return $cachedScript;
+				}
+			} catch (\Exception $e) {}
 		}
 		$scripts = [
 			'formId' => $this->getFormHTMLID(),
@@ -345,7 +409,10 @@ class FormBuilder extends DataObject implements Flushable
 			}
 		}
 		$this->extend('updateFrontEndJS', $scripts);
-		$this->JsValidationCache = json_encode($scripts);
+		try {
+
+			Cache::set($cacheName, serialize($scripts));
+		} catch (\Exception $e) {}
 		if ($this->Exists())
 		{
 			$this->write();
@@ -376,11 +443,6 @@ window._formBuilderRules.push(".json_encode($this->getFrontEndJS()).");";
 			}
 		}
 		return Field::get()->byIDs($placementIDs);
-	}
-
-	public function onBeforeDuplicate($original, $doWrite, $relations)
-	{
-		$this->Title = 'Copy of '.$original->Title;
 	}
 
 	public function processFormData(&$data, &$form, &$controller)//&$request, &$response)
@@ -425,7 +487,7 @@ window._formBuilderRules.push(".json_encode($this->getFrontEndJS()).");";
 			}
 			$submitCacheData[$formBuilderField->Name] = null;
 			try {
-				if ( ($submissionFieldValue = $formBuilderField->createSubmissionFieldValue($submittedValue)) && (!is_null($submissionFieldValue->Value)) )
+				if ( ($submissionFieldValue = $formBuilderField->createSubmissionFieldValue($submittedValue, $data)) && (!is_null($submissionFieldValue->Value)) )
 				{
 					$submissionFieldValue->SubmissionID = $submission->ID;
 					$submittedValues[] = $submissionFieldValue;

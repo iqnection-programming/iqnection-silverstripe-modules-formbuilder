@@ -14,6 +14,8 @@ use Symbiote\GridFieldExtensions\GridFieldTitleHeader;
 use SilverStripe\Forms;
 use IQnection\FormBuilder\Extensions\SelectField;
 use SilverStripe\ORM\FieldType;
+use IQnection\FormBuilder\FormBuilder;
+use IQnection\FormBuilder\Extensions\Duplicable;
 
 class FieldAction extends DataObject
 {
@@ -21,6 +23,10 @@ class FieldAction extends DataObject
 	private static $singular_name = 'Action';
 	private static $plural_name = 'Actions';
 	private static $hide_ancestor = FieldAction::class;
+
+	private static $extensions = [
+		Duplicable::class
+	];
 
 	private static $db = [
 	];
@@ -57,6 +63,11 @@ class FieldAction extends DataObject
 		'Is Empty' => 'Is Empty',
 		'Greater Than' => 'Greater Than',
 		'Less Than' => 'Less Than'
+	];
+
+	private static $form_builder_many_many_duplicates = [
+		'Children',
+		'ChildSelections'
 	];
 
 	public function getCMSFields()
@@ -114,7 +125,7 @@ class FieldAction extends DataObject
 						{
 							$fieldRecord = $fieldRecord->Parent();
 						}
-						return $fieldRecord->ConditionOptionsField($this);
+						return $fieldRecord->ConditionOptionsField($this, '_ChildSelections');
 					}
 				]
 			];
@@ -167,10 +178,13 @@ class FieldAction extends DataObject
 
 		foreach($this->Children() as $child)
 		{
-			if (!$this->testCondition($child->State, $child, $submittedValues))
+			if (!$child->isHidden($submittedValues))
 			{
-				$result = false;
-				break;
+				if (!$this->testCondition($child->State, $child, $submittedValues))
+				{
+					$result = false;
+					break;
+				}
 			}
 		}
 		$this->extend('updateTestConditions', $result, $submittedValues);
@@ -181,27 +195,37 @@ class FieldAction extends DataObject
 	{
 		$fieldName = $testField->getFrontendFieldName();
 		$fieldValue = (array_key_exists($fieldName, $values)) ? $values[$fieldName] : null;
-		switch($state)
+		switch(strtolower($state))
 		{
-			case 'Has Value':
+			case 'has value':
 				if ( ($fieldValue !== '') && (!is_null($fieldValue)) )
 				{
 					return true;
 				}
 				break;
-			case 'Is Empty':
+			case 'is empty':
 				if ( ($fieldValue === '') || (is_null($fieldValue)) )
 				{
 					return true;
 				}
 				break;
-			case 'Match':
+			case 'match':
 				$selectionIds = $this->ChildSelections()->Column('ID');
-				if ( (is_array($fieldValue)) && (count($selectionIds)) && ($testField->hasExtension(SelectField::class)) )
+				if (count($selectionIds))
 				{
-					foreach($testField->Options()->byIds($selectionIds)->Column('ID') as $testOption)
+					if ( (is_array($fieldValue)) && ($testField->hasExtension(SelectField::class)) )
 					{
-						if (in_array($testOption, $fieldValue))
+						foreach($testField->Options()->byIds($selectionIds)->Column('ID') as $testOption)
+						{
+							if (in_array($testOption, $fieldValue))
+							{
+								return true;
+							}
+						}
+					}
+					else
+					{
+						if (in_array($fieldValue, $selectionIds))
 						{
 							return true;
 						}
@@ -210,6 +234,12 @@ class FieldAction extends DataObject
 				break;
 		}
 		return false;
+	}
+
+	public function onBeforeWrite()
+	{
+		parent::onBeforeWrite();
+		$this->forceChange();
 	}
 
 	public function onAfterWrite()
@@ -234,7 +264,7 @@ class FieldAction extends DataObject
 			$this->ChildSelections()->removeAll();
 			$this->ChildSelections()->addMany($_REQUEST['_ChildSelections']);
 		}
-		$this->FormBuilder()->clearJsCache();
+		$this->FormBuilder()->clearAllCache();
 	}
 
 	public function getBetterButtonsActions()

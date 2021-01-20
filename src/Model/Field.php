@@ -10,6 +10,7 @@ use SilverStripe\Core\Injector\Injector;
 use IQnection\FormBuilder\FormBuilder;
 use IQnection\FormBuilder\Model\FieldAction;
 use IQnection\FormBuilder\Model\FormAction;
+use IQnection\FormBuilder\Fields\FieldGroup;
 use Symbiote\GridFieldExtensions\GridFieldAddNewMultiClass;
 use Symbiote\GridFieldExtensions\GridFieldAddNewInlineButton;
 use Symbiote\GridFieldExtensions\GridFieldAddExistingSearchButton;
@@ -18,6 +19,7 @@ use Symbiote\GridFieldExtensions\GridFieldOrderableRows;
 use Symbiote\GridFieldExtensions\GridFieldTitleHeader;
 use SilverStripe\ORM\FieldType;
 use IQnection\FormBuilder\Actions\ToggleDisplayFieldAction;
+use IQnection\FormBuilder\Extensions\Duplicable;
 
 class Field extends DataObject
 {
@@ -25,6 +27,10 @@ class Field extends DataObject
 	private static $hide_ancestor = Field::class;
 
 	private static $submission_value_class = SubmissionFieldValue::class;
+
+	private static $extensions = [
+		Duplicable::class
+	];
 
 	private static $db = [
 		'Enable' => 'Boolean',
@@ -62,6 +68,10 @@ class Field extends DataObject
 	];
 
 	private static $default_sort = 'SortOrder ASC';
+
+	private static $form_builder_has_many_duplicates = [
+		'FieldActions'
+	];
 
 	public function getCMSFields()
 	{
@@ -118,22 +128,13 @@ class Field extends DataObject
 
 	public function onBeforeDuplicate($original, $doWrite, $relations)
 	{
-		$this->Title = 'Copy of '.$original->Title;
-		$name = $this->Name;
-		$itt = 1;
-		if (preg_match('/\s\d+$/',$this->Name))
-		{
-			$currentItt = preg_replace('/^.*\s(\d+)$/','$1', $name);
-			$name = preg_replace('/^(.*)\s\d+$/','$1', $name);
-			$itt += $currentItt;
-		}
-		$this->Name = $name.' '.$itt;
+		$this->Name = $name = 'Copy of '.$original->Name;
 	}
 
-	public function ConditionOptionsField(&$fieldAction)
+	public function ConditionOptionsField(&$fieldAction, $fieldName = null)
 	{
 		$field = Forms\SelectionGroup::create('State', []);
-		$this->extend('updateConditionOptions', $field, $fieldAction);
+		$this->extend('updateConditionOptions', $field, $fieldAction, $fieldName);
 		return $field;
 	}
 
@@ -168,21 +169,33 @@ class Field extends DataObject
 		return $allowedActions;
 	}
 
+	public function isHidden($formData)
+	{
+		$hidden = $this->HideByDefault;
+		// if this field has actions, check to see if the field is hidden based on conditions
+		foreach($this->FieldActions() as $fieldAction)
+		{
+			if ( ($fieldAction instanceof ToggleDisplayFieldAction) && ($fieldAction->testConditions($formData)) )
+			{
+				// conditions are true, field is toggles
+				$hidden = !$hidden;
+			}
+		}
+		return $hidden;
+	}
+
 	public function updateFrontEndValidator(&$validator, $formData = [])
 	{
 		if ($isRequired = $this->Required)
 		{
-			$hidden = $this->HideByDefault;
-			// if this field has actions, check to see if the field is hidden based on conditions
-			foreach($this->FieldActions() as $fieldAction)
+			// is the field in a FieldGroup, and is the field group hidden
+			if ( ($this->Container() instanceof FieldGroup) && ($this->Container()->isHidden($formData)) )
 			{
-				if ( ($fieldAction instanceof ToggleDisplayFieldAction) && ($fieldAction->testConditions($formData)) )
-				{
-					// conditions are true, field is toggles
-					$hidden = !$hidden;
-				}
+				return;
 			}
-			if ($hidden)
+
+			// if this field is NOT hidden, set requirement
+			if (!$this->isHidden($formData))
 			{
 				$validator->addRequiredField($this->getFrontendFieldName());
 			}
@@ -280,7 +293,7 @@ class Field extends DataObject
 	public function onAfterWrite()
 	{
 		parent::onAfterWrite();
-		$this->FormBuilder()->clearJsCache();
+		$this->FormBuilder()->clearAllCache();
 	}
 
 	public function FormBuilder()
@@ -341,6 +354,7 @@ class Field extends DataObject
 		{
 			$field->addExtraClass(implode(' ',$extraClasses));
 		}
+		$field->setAttribute('data-form-builder-name', $this->Name);
 		$field->FormBuilderField = $this;
 	}
 
@@ -380,13 +394,13 @@ class Field extends DataObject
 		return $errors;
 	}
 
-	public function prepareSubmittedValue($value)
+	public function prepareSubmittedValue($value, $formData = [])
 	{
-		$this->extend('updatePreparedSubmittedValue',$value);
+		$this->extend('updatePreparedSubmittedValue',$value, $formData);
 		return $value;
 	}
 
-	public function createSubmissionFieldValue($value)
+	public function createSubmissionFieldValue($value, $formData = [])
 	{
 		$rawValue = $value;
 		$submissionFieldValue = Injector::inst()->create($this->Config()->get('submission_value_class'));
@@ -401,8 +415,8 @@ class Field extends DataObject
 		$submissionFieldValue->Label = $this->Label;
 		$submissionFieldValue->Required = $this->Required;
 		$submissionFieldValue->RawValue = serialize($rawValue);
-		$submissionFieldValue->Value = $this->prepareSubmittedValue($rawValue);
-		$this->extend('updateSubmissionFieldValue', $submissionFieldValue, $rawValue);
+		$submissionFieldValue->Value = $this->prepareSubmittedValue($rawValue, $formData);
+		$this->extend('updateSubmissionFieldValue', $submissionFieldValue, $rawValue, $formData);
 		return $submissionFieldValue;
 	}
 

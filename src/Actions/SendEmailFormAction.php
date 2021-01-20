@@ -24,29 +24,51 @@ class SendEmailFormAction extends FormAction
 		'Subject' => 'Varchar(255)',
 		'IncludeSubmission' => 'Boolean',
 		'MakeFileLinks' => 'Boolean',
+		'AttachUploadedFiles' => 'Boolean',
 		'Body' => 'HTMLText',
 	];
 
 	private static $many_many = [
-		'EmailFields' => EmailField::class
+		'EmailFields' => EmailField::class,
+		'ReplyToEmailFields' => EmailField::class
+	];
+
+	private static $form_builder_many_many_duplicates = [
+		'EmailFields',
+		'ReplyToEmailFields'
 	];
 
 	public function getCMSFields()
 	{
 		$fields = parent::getCMSFields();
 		$fields->removeByName([
-			'EmailFields'
+			'EmailFields',
+			'ReplyToEmailFields',
+			'To',
+			'ReplyTo'
 		]);
-		$fields->dataFieldByName('To')->setDescription('Comma separate multiple email addresses');
 		$fields->dataFieldByName('CC')->setDescription('Comma separate multiple email addresses');
 		$fields->dataFieldByName('BCC')->setDescription('Comma separate multiple email addresses');
-		$fields->insertAfter('To', Forms\CheckboxSetField::create('EmailFields','Available Email fields from the form')
-			->setSource($this->getAvailableEmailFields()->map('ID','Name')));
-		$fields->dataFieldByName('ReplyTo')->setDescription('(Optional) Defaults to From address');
+		$emailFields = $this->getAvailableEmailFields()->map('ID','Name');
+
+		$fields->insertAfter('FromName', Forms\FieldGroup::create('Reply To', [
+			Forms\TextField::create('ReplyTo','Enter Email')->setDescription('Comma separate multiple email addresses'),
+			Forms\CheckboxSetField::create('ReplyToEmailFields','Available Email fields from the form')
+				->setSource($emailFields)
+		]));
+		$fields->insertAfter('FromName', Forms\FieldGroup::create('Send To', [
+			Forms\TextField::create('To','Enter Email')->setDescription('(Optional) Defaults to From address'),
+			Forms\CheckboxSetField::create('EmailFields','Available Email fields from the form')
+				->setSource($emailFields)
+		]));
 
 		if ($MakeFileLinks = $fields->dataFieldByName('MakeFileLinks'))
 		{
 			$MakeFileLinks->setDescription('If enabled, links will be provided to uploaded files. You must be logged in to view these files');
+		}
+		if ($AttachUploadedFiles = $fields->dataFieldByName('AttachUploadedFiles'))
+		{
+			$AttachUploadedFiles->setDescription('Attaches submitted files to the email');
 		}
 		return $fields;
 	}
@@ -108,7 +130,14 @@ class SendEmailFormAction extends FormAction
 		}
 		if ($this->ReplyTo)
 		{
-			$email->setReplyTo($this->ReplyTo);
+			$email->addReplyTo($this->ReplyTo);
+		}
+		foreach($this->ReplyToEmailFields() as $emailField)
+		{
+			if ( ($submittedValue = $submission->SubmissionFieldValues()->Find('FormBuilderFieldID', $emailField->ID)) && (trim($submittedValue->Value)) )
+			{
+				$email->addReplyTo(trim($submittedValue->Value));
+			}
 		}
 		if (trim($this->To))
 		{
@@ -136,6 +165,17 @@ class SendEmailFormAction extends FormAction
 			if ( ($submittedValue = $submission->SubmissionFieldValues()->Find('FormBuilderFieldID', $emailField->ID)) && (trim($submittedValue->Value)) )
 			{
 				$email->addTo(trim($submittedValue->Value));
+			}
+		}
+		if ($this->AttachUploadedFiles)
+		{
+			foreach($submission->SubmissionFieldValues()->Exclude('FileID',0) as $uploadFieldValue)
+			{
+				$file = $uploadFieldValue->File();
+				if ($file->Exists())
+				{
+					$email->addAttachmentFromData($file->getString(), $file->getFilename());
+				}
 			}
 		}
 		return $email->send();

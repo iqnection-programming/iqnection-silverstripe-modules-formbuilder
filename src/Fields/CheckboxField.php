@@ -42,7 +42,7 @@ class CheckboxField extends Field
 		return $field;
 	}
 
-	public function prepareSubmittedValue($value)
+	public function prepareSubmittedValue($value, $formData = [])
 	{
 		$value = $value	? $this->CheckedValue : $this->UncheckedValue;
 		return $value;

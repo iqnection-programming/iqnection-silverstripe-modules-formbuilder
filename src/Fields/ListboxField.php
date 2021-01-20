@@ -91,6 +91,12 @@ class ListboxField extends Field
 		return $name;
 	}
 
+	public function getjQuerySelector()
+	{
+		$selector = '[name="'.$this->getFrontendFieldName().'[]"]';
+		return $selector;
+	}
+
 	public function getFieldJsValidation()
 	{
 		$rules = parent::getFieldJsValidation();
@@ -107,7 +113,7 @@ class ListboxField extends Field
 
 	public function getOptionjQuerySelector($option)
 	{
-		return $this->getjQuerySelector().' option[value="'.$option->Value.'"]';
+		return $this->getjQuerySelector().' option[value="'.$option->ID.'"]';
 	}
 }
 

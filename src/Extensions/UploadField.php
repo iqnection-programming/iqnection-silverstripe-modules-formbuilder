@@ -132,7 +132,7 @@ class UploadField extends DataExtension
 		}
 	}
 
-	public function updateSubmissionFieldValue($submissionFieldValue)
+	public function updateSubmissionFieldValue($submissionFieldValue, $formData = [])
 	{
 		$fileArray = unserialize($submissionFieldValue->RawValue);
 		if ( (!is_array($fileArray)) || (!isset($fileArray['size'])) || (!$fileArray['tmp_name']) )
@@ -157,7 +157,7 @@ class UploadField extends DataExtension
 		$destinationPath = $filter->filter($this->owner->Config()->get('submissions_folder'));
 		$rootFolder = Folder::find_or_make($destinationPath);
 		// if the folder was just created, set the permissions so only logged in users can access
-		if ($rootFolder->Created == $rootFolder->LastEdited)
+		if ( ($rootFolder->CanViewType != 'LoggedInUsers') || ($rootFolder->CanEditType != 'LoggedInUsers') )
 		{
 			$rootFolder->CanViewType = 'LoggedInUsers';
 			$rootFolder->CanEditType = 'LoggedInUsers';

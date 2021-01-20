@@ -8,7 +8,26 @@ use IQnection\FormBuilder\Cache\Cache;
 class Cacheable extends DataExtension
 {
 	private static $cascade_caches = [];
-	
+
+	public function CacheName($suffixes = [])
+	{
+		$cacheName = $this->owner->getClassName().'.'.$this->owner->ID.'.'.$this->owner->getTitle();
+		if ($suffixes)
+		{
+			if ( (is_array($suffixes)) && (count($suffixes)) )
+			{
+				$suffixes = implode('.',$suffixes);
+			}
+			$cacheName .= '.'.$suffixes;
+		}
+		$this->owner->invokeWithExtensions('updateCacheName', $cacheName);
+		$cacheName = preg_replace('/[\{\}\(\)\/\@\\\\]/','',$cacheName);
+		return $cacheName;
+	}
+
+	public function updateCacheName(&$cacheName)
+	{ }
+
 	public function saveRecordCache($includeRelations = true)
 	{
 		$cache = $this->owner->configForCache($includeRelations);

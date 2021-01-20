@@ -17,6 +17,7 @@ use SilverStripe\ORM\FieldType;
 use IQnection\FormBuilder\Model\SelectFieldOptionAction;
 use IQnection\FormBuilder\Model\FieldAction;
 use IQnection\FormBuilder\Model\FormAction;
+use IQnection\FormBuilder\FormBuilder;
 
 class SelectField extends DataExtension
 {
@@ -35,6 +36,10 @@ class SelectField extends DataExtension
 	];
 
 	private static $cascade_caches = [
+		'Options'
+	];
+
+	private static $form_builder_has_many_duplicates = [
 		'Options'
 	];
 
@@ -97,7 +102,7 @@ class SelectField extends DataExtension
 		return $fields;
 	}
 
-	public function updateConditionOptions(&$field, &$fieldAction)
+	public function updateConditionOptions(&$field, &$fieldAction = null, $fieldName = null)
 	{
 		$source = [];
 		foreach($this->owner->Options() as $option)
@@ -116,7 +121,7 @@ class SelectField extends DataExtension
 		$field->push(Forms\SelectionGroup_Item::create('Has Value', null, 'Any selected'));
 		$field->push(Forms\SelectionGroup_Item::create(
 			'Match',
-			Forms\CheckboxSetField::create('_ChildSelections','Options')
+			Forms\CheckboxSetField::create($fieldName,'Options')
 				->setSource($source)
 				->setDefaultItems($defaults),
 			'Specified selected (when the user chooses any below selected values, this action will be triggered)')

@@ -26,7 +26,7 @@ class InputField extends DataExtension
 		return $fields;
 	}
 
-	public function updateConditionOptions(&$field)
+	public function updateConditionOptions(&$field, $fieldAction = null, $fieldName = null)
 	{
 		if ($this->owner instanceof CheckboxField)
 		{

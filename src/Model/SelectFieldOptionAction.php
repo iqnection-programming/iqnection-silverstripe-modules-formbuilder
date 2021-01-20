@@ -13,6 +13,8 @@ use Symbiote\GridFieldExtensions\GridFieldTitleHeader;
 use SilverStripe\Forms;
 use IQnection\FormBuilder\Extensions\SelectField;
 use SilverStripe\ORM\FieldType;
+use IQnection\FormBuilder\FormBuilder;
+use IQnection\FormBuilder\Extensions\Duplicable;
 
 class SelectFieldOptionAction extends DataObject
 {
@@ -21,30 +23,39 @@ class SelectFieldOptionAction extends DataObject
 	private static $plural_name = 'Actions';
 	private static $hide_ancestor = SelectFieldOptionAction::class;
 
+	private static $extensions = [
+		Duplicable::class
+	];
+
 	private static $has_one = [
 		'Parent' => SelectFieldOption::class
 	];
-	
+
 	private static $many_many = [
 		'Children' => Field::class,
 		'ChildSelections' => SelectFieldOption::class
 	];
-	
+
 	private static $many_many_extraFields = [
 		'Children' => [
 			'State' => "Enum('Has Value,Match,Is Empty','Has Value')",
 		]
 	];
-	
+
 	private static $summary_fields = [
 		'ActionType' => 'Type',
 		'Explain' => 'Conditions'
 	];
-	
+
 	private static $casting = [
 		'Explain' => 'HTMLFragment'
 	];
-	
+
+	private static $form_builder_many_many_duplicates = [
+		'Children',
+		'ChildSelections',
+	];
+
 	public function getCMSFields()
 	{
 		$fields = parent::getCMSFields();
@@ -74,7 +85,7 @@ class SelectFieldOptionAction extends DataObject
 			));
 			$searchButton->setTitle('Add Field');
 			$searchButton->setSearchList($this->Parent()->Field()->FormBuilder()->DataFields());
-			
+
 			$editableColumns->setDisplayFields([
 				'Name' => [
 					'title' => 'Field',
@@ -94,7 +105,7 @@ class SelectFieldOptionAction extends DataObject
 							return Forms\SelectionGroup::create('State', [
 								Forms\SelectionGroup_Item::create('Has Value', null, 'Any selection'),
 								Forms\SelectionGroup_Item::create(
-									'Match', 
+									'Match',
 									Forms\CheckboxSetField::create('_ChildSelections','Options')
 										->setSource($source)
 										->setDefaultItems($this->ChildSelections()->Column('ID')),
@@ -112,22 +123,28 @@ class SelectFieldOptionAction extends DataObject
 
 		return $fields;
 	}
-	
+
 	public function FormBuilder()
 	{
 		return $this->Parent()->FormBuilder();
 	}
-	
+
 	public function getTitle()
 	{
 		return $this->singular_name();
 	}
-	
+
 	public function test()
 	{
 		return false;
 	}
-	
+
+	public function onBeforeWrite()
+	{
+		parent::onBeforeWrite();
+		$this->forceChange();
+	}
+
 	public function onAfterWrite()
 	{
 		parent::onAfterWrite();
@@ -155,9 +172,9 @@ class SelectFieldOptionAction extends DataObject
 				$this->ChildSelections()->removeMany($remove->Column('ID'));
 			}
 		}
-		$this->FormBuilder()->clearJsCache();
+		$this->FormBuilder()->clearAllCache();
 	}
-	
+
 	public function getBetterButtonsActions()
 	{
 		$actions = parent::getBetterButtonsActions();
@@ -169,7 +186,7 @@ class SelectFieldOptionAction extends DataObject
 		}
 		return $actions;
 	}
-	
+
 	public function Explain()
 	{
 		$conditions = [];
@@ -185,7 +202,8 @@ class SelectFieldOptionAction extends DataObject
 					$condition .= ' '.$conditionField->State;
 					break;
 				case 'Match':
-					$condition .= ' Has Selected: '.implode(', ',$conditionField->Options()->Filter('ID', $this->ChildSelections()->Column('ID'))->Column('Value'));
+					$ids = array_merge([0], $this->ChildSelections()->Column('ID'));
+					$condition .= ' Has Selected: '.implode(', ',$conditionField->Options()->Filter('ID', $ids)->Column('Value'));
 					break;
 			}
 			$conditions[] = $condition;
@@ -194,7 +212,7 @@ class SelectFieldOptionAction extends DataObject
 		$text .= ' - Conditions: <ul><li>'.implode('</li><li>',$conditions).'</ul>';
 		return FieldType\DBField::create_field(FieldType\DBHTMLVarchar::class, $text);
 	}
-	
+
 	public function getActionData()
 	{
 		$js = [
@@ -234,7 +252,7 @@ class SelectFieldOptionAction extends DataObject
 		}
 		return $js;
 	}
-	
+
 	public function ActionType()
 	{
 		return $this->singular_name();

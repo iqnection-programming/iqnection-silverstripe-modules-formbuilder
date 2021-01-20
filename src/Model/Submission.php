@@ -10,26 +10,26 @@ use SilverStripe\Forms;
 class Submission extends DataObject
 {
 	private static $table_name = 'FormBuilderSubmission';
-	
+
 	private static $db = [
 		'FormData' => 'Text',
 		'PageName' => 'Varchar(255)',
 	];
-	
+
 	private static $has_many = [
 		'SubmissionFieldValues' => SubmissionFieldValue::class
 	];
-	
+
 	private static $has_one = [
 		'Page' => \Page::class,
 		'FormBuilder' => FormBuilder::class
 	];
-	
+
 	private static $summary_fields = [
 		'ID' => 'ID',
 		'Created.Nice' => 'Date',
 	];
-	
+
 	private static $default_sort = 'Created DESC';
 
 	private static $cascade_deletes = [
@@ -40,22 +40,22 @@ class Submission extends DataObject
 	{
 		return false;
 	}
-	
+
 	public function CanEdit($member = null, $context = [])
 	{
 		return false;
 	}
-	
+
 	public function CanView($member = null, $context = [])
 	{
 		return true;
 	}
-	
+
 	public function CanDelete($member = null, $context = [])
 	{
 		return true;
 	}
-	
+
 	public function getCMSFields()
 	{
 		$fields = parent::getCMSFields();
@@ -73,9 +73,10 @@ class Submission extends DataObject
 			$fields->addFieldToTab('Root.Main', $submissionValue->getReadonlyField());
 		}
 
+		$fields->addFieldToTab('Root.Raw', Forms\LiteralField::create('_rawData','<div><pre>'.print_r(unserialize($this->FormData),1 ).'</pre></div>'));
 		return $fields;
 	}
-	
+
 	public function onBeforeWrite()
 	{
 		parent::onBeforeWrite();
@@ -86,7 +87,7 @@ class Submission extends DataObject
 			$this->forceChange(true);
 		}
 	}
-	
+
 	public function getTitle()
 	{
 		$title = '';
@@ -97,7 +98,7 @@ class Submission extends DataObject
 		$title .= 'Submission #'.$this->ID;
 		return $title;
 	}
-	
+
 	public function relField($field)
 	{
 		if ($formData = $this->RawFormData())
@@ -109,7 +110,7 @@ class Submission extends DataObject
 		}
 		return parent::relField($field);
 	}
-	
+
 	protected $_formData;
 	public function RawFormData()
 	{

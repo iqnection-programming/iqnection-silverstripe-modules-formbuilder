@@ -13,6 +13,7 @@ use Symbiote\GridFieldExtensions\GridFieldOrderableRows;
 use Symbiote\GridFieldExtensions\GridFieldTitleHeader;
 use IQnection\FormBuilder\Extensions\SelectField;
 use SilverStripe\ORM\FieldType;
+use IQnection\FormBuilder\Extensions\Duplicable;
 
 class FormAction extends DataObject
 {
@@ -20,6 +21,10 @@ class FormAction extends DataObject
 	private static $singular_name = 'Action';
 	private static $plural_name = 'Actions';
 	private static $hide_ancestor = FormAction::class;
+
+	private static $extensions = [
+		Duplicable::class
+	];
 
 	private static $db = [
 		'Name' => 'Varchar(255)',
@@ -49,6 +54,11 @@ class FormAction extends DataObject
 
 	private static $form_events = [
 		'onFormSubmit' => 'On Form Submit'
+	];
+
+	private static $form_builder_many_many_duplicates = [
+		'ConditionFields',
+		'ConditionFieldSelections',
 	];
 
 	public function getCMSFields()
@@ -105,7 +115,7 @@ class FormAction extends DataObject
 						{
 							$fieldRecord = $fieldRecord->Parent();
 						}
-						return $fieldRecord->ConditionOptionsField($this);
+						return $fieldRecord->ConditionOptionsField($this, '_ConditionFieldSelections');
 					}
 				]
 			]);
@@ -132,11 +142,15 @@ class FormAction extends DataObject
 
 	public function onFormSubmit($form, $data, $submission) { }
 
+	public function onBeforeWrite()
+	{
+		parent::onBeforeWrite();
+		$this->forceChange();
+	}
+
 	public function onAfterWrite()
 	{
 		parent::onAfterWrite();
-		$this->FormBuilder()->clearJsCache();
-
 		if (array_key_exists('_ConditionFieldSelections',$_REQUEST))
 		{
 			$linkedSelectionIDs = [];
@@ -161,7 +175,7 @@ class FormAction extends DataObject
 				$this->ConditionFieldSelections()->removeMany($remove->Column('ID'));
 			}
 		}
-		$this->FormBuilder()->clearJsCache();
+		$this->FormBuilder()->clearAllCache();
 	}
 
 	public function testConditions($submittedValues = [])

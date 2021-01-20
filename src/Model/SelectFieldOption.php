@@ -14,11 +14,14 @@ use Symbiote\GridFieldExtensions\GridFieldAddExistingSearchButton;
 use Symbiote\GridFieldExtensions\GridFieldEditableColumns;
 use Symbiote\GridFieldExtensions\GridFieldOrderableRows;
 use Symbiote\GridFieldExtensions\GridFieldTitleHeader;
+use IQnection\FormBuilder\FormBuilder;
+use IQnection\FormBuilder\Extensions\Duplicable;
 
 class SelectFieldOption extends DataObject
 {
 	private static $extensions = [
-		Cacheable::class
+		Cacheable::class,
+		Duplicable::class
 	];
 
 	private static $table_name = 'FormBuilderSelectFieldOption';
@@ -27,8 +30,8 @@ class SelectFieldOption extends DataObject
 
 	private static $db = [
 		'SortOrder' => 'Int',
-		'Label' => 'Varchar(255)',
 		'Value' => 'Text',
+		'Label' => 'Varchar(255)',
 		'DefaultSelected' => 'Boolean',
 		'HideByDefault' => 'Boolean'
 	];
@@ -53,6 +56,10 @@ class SelectFieldOption extends DataObject
 
 	private static $default_sort = 'SortOrder ASC';
 
+	private static $form_builder_has_many_duplicates = [
+		'SelectionActions'
+	];
+
 	public function getCMSFields()
 	{
 		$fields = parent::getCMSFields();
@@ -61,16 +68,17 @@ class SelectFieldOption extends DataObject
 			'SelectionActions',
 			'OwnerFieldActions',
 			'OwnerSelectionActions',
-			'OwnerFormActions'
+			'OwnerFormActions',
+			'FieldID',
 		]);
-		$fields->replaceField('Label', $fields->dataFieldByName('Label')->performReadonlyTransformation());
-		$fields->replaceField('Value', $fields->dataFieldByName('Value')->performReadonlyTransformation());
+//		$fields->replaceField('Label', $fields->dataFieldByName('Label')->performReadonlyTransformation());
+		$fields->replaceField('Value', Forms\TextField::create('Value','Value'));
 		$fields->replaceField('DefaultSelected', $fields->dataFieldByName('DefaultSelected')->performReadonlyTransformation());
 
 		$fields->addFieldToTab('Root.Main', Forms\CheckboxField::create('HideByDefault','Hide this selection by default'));
 
-		$fields->addFieldToTab('Root.Display', Forms\HeaderField::create('_displayText','Select and add an action, then set the conditions',2));
-		$fields->addFieldToTab('Root.Display', Forms\GridField\GridField::create(
+		$fields->addFieldToTab('Root.Main', Forms\HeaderField::create('_displayText','Select and add an action, then set the conditions',2));
+		$fields->addFieldToTab('Root.Main', Forms\GridField\GridField::create(
 			'SelectionActions',
 			'Selection Actions',
 			$this->SelectionActions(),
@@ -84,7 +92,7 @@ class SelectFieldOption extends DataObject
 	public function onAfterWrite()
 	{
 		parent::onAfterWrite();
-		$this->FormBuilder()->clearJsCache();
+		$this->FormBuilder()->clearAllCache();
 	}
 
 	public function getOnLoadFieldSelectionActions($onLoadCondition = null)
