@@ -9,20 +9,19 @@ class Cacheable extends DataExtension
 {
 	private static $cascade_caches = [];
 
-	public function CacheName($suffixes = [])
+	public function CacheName($args = null)
 	{
 		$cacheName = $this->owner->getClassName().'.'.$this->owner->ID.'.'.$this->owner->getTitle();
-		if ($suffixes)
+		if ($args)
 		{
-			if ( (is_array($suffixes)) && (count($suffixes)) )
+			foreach(func_get_args() as $arg)
 			{
-				$suffixes = implode('.',$suffixes);
+				$cacheName .= '.'. ((is_array($suffixes)) ? implode('.',$arg) : $arg);
 			}
-			$cacheName .= '.'.$suffixes;
 		}
 		$this->owner->invokeWithExtensions('updateCacheName', $cacheName);
-		$cacheName = preg_replace('/[\{\}\(\)\/\@\\\\]/','',$cacheName);
-		return $cacheName;
+		$cacheName = preg_replace('/[\{\}\(\)\/\@\:\.\"\']/','',$cacheName);
+		return md5($cacheName);
 	}
 
 	public function updateCacheName(&$cacheName)

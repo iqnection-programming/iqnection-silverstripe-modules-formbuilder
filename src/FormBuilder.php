@@ -90,7 +90,7 @@ class FormBuilder extends DataObject
 			if ($columns = $submissions_fg->getConfig()->getComponentsByType(Forms\GridField\GridFieldDataColumns::class)->First())
 			{
 				$displayFields = Submission::singleton()->summaryFields();
-				foreach($this->Fields()->Filter('ShowInSubmissionsTable',1)->Column('Name') as $displayField)
+				foreach($this->DataFields()->Filter('ShowInSubmissionsTable',1)->Column('Name') as $displayField)
 				{
 					$displayFields[$displayField] = $displayField;
 				}
@@ -151,6 +151,7 @@ class FormBuilder extends DataObject
 	public function onBeforeWrite()
 	{
 		parent::onBeforeWrite();
+		$this->forceChange();
 		if (!$this->SubmitText)
 		{
 			$this->SubmitText = $this->Config()->get('default_submit_text');
@@ -200,13 +201,13 @@ class FormBuilder extends DataObject
 
 	public function clearFormCache()
 	{
-		$result = Cache::delete($this->CacheName('form'));
+		$result = Cache::delete($this->CacheName('form', $this->LastEdited));
 		return $this;
 	}
 
 	public function clearJsCache()
 	{
-		Cache::delete($this->CacheName('formJs'));
+		Cache::delete($this->CacheName('formJs', $this->LastEdited));
 		return $this;
 	}
 
@@ -238,7 +239,7 @@ class FormBuilder extends DataObject
 				$defaults = $controller->getRequest()->requestVars();
 			}
 
-			$cacheName = $this->CacheName('form');
+			$cacheName = $this->CacheName('form', $this->LastEdited);
 			$validator = $fields = false;
 			try {
 				if ( ($cachedForm = Cache::get($cacheName)) && (!Director::isDev()) )
@@ -314,7 +315,7 @@ class FormBuilder extends DataObject
 
 	public function getFrontEndJS()
 	{
-		$cacheName = $this->CacheName('formJs');
+		$cacheName = $this->CacheName('formJs', $this->LastEdited);
 		if ($cachedScript = Cache::get($cacheName))
 		{
 			try {
