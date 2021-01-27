@@ -110,7 +110,7 @@ class SendEmailFormAction extends FormAction
 		return $result;
 	}
 
-	public function onFormSubmit($form, $data, $submission)
+	public function generateEmail($form, $data, $submission)
 	{
 		// test the conditions
 		if (!$this->testConditions($data))
@@ -178,7 +178,32 @@ class SendEmailFormAction extends FormAction
 				}
 			}
 		}
+		$this->extend('updateEmail', $email, $form, $data, $submission);
+		return $email;
+	}
+
+	public function onFormSubmit($form, $data, $submission)
+	{
+		$email = $this->generateEmail($form, $data, $submission);
 		return $email->send();
+	}
+
+	public function getRecipients($submission)
+	{
+		$recipients = [
+			'To' => explode(',', $this->To),
+			'CC' => explode(',', $this->CC),
+			'BCC' => explode('BCC', $this->BCC)
+		];
+		foreach($this->EmailFields() as $emailField)
+		{
+			if ( ($submittedValue = $submission->SubmissionFieldValues()->Find('FormBuilderFieldID', $emailField->ID)) && (trim($submittedValue->Value)) )
+			{
+				$recipients['To'][] = trim($submittedValue->Value);
+			}
+		}
+		$recipients['To'] = array_filter($recipients['To']);
+		return $recipients;
 	}
 }
 

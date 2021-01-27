@@ -80,7 +80,7 @@ class FormBuilder extends DataObject
 				->setValue(ShortcodeParser::generateShortcode($this))
 				->setReadonly(true)
 				->setAttribute('onclick', 'javascript:select(this);')
-				->setDescription('Copy this short code and paste on any page where you want to display this form<br /><a href="'.FormBuilderPreview::singleton()->PreviewLink($this->ID).'" target="_blank">Preview Form</a>'));
+				->setDescription(FieldType\DBField::create_field(FieldType\DBHTMLVarchar::class, 'Copy this short code and paste on any page where you want to display this form<br /><a href="'.FormBuilderPreview::singleton()->PreviewLink($this->ID).'" target="_blank">Preview Form</a>')));
 		}
 		if ($submissions_fg = $fields->dataFieldByName('Submissions'))
 		{

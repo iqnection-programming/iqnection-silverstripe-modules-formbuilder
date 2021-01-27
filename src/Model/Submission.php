@@ -6,6 +6,9 @@ use SilverStripe\ORM\DataObject;
 use IQnection\FormBuilder\FormBuilder;
 use SilverStripe\Assets\File;
 use SilverStripe\Forms;
+use IQnection\FormBuilder\Control\FormBuilderPreview;
+use IQnection\FormBuilder\Actions\SendEmailFormAction;
+use SilverStripe\ORM\FieldType;
 
 class Submission extends DataObject
 {
@@ -65,6 +68,23 @@ class Submission extends DataObject
 			'FormBuilderID',
 			'SubmissionFieldValues'
 		]);
+
+		$links = [];
+		foreach($this->FormBuilder()->Actions() as $formAction)
+		{
+			if ($formAction instanceof SendEmailFormAction)
+			{
+				$url = FormBuilderPreview::singleton()->Link(FormBuilderPreview::join_links('_resendsubmissions', $this->ID, $formAction->ID));
+				$recipients = $formAction->getRecipients($this);
+				$links[] = '<p>Email Name: '.$formAction->Name.'<br />To: '.implode(', ',$recipients['To']).'<br />Subject: '.$formAction->Subject.'<br /><a href="'.$url.'" target="_blank">Send</a></p>';
+			}
+		}
+		if (count($links))
+		{
+			$fields->addFieldToTab('Root.Main', Forms\ReadonlyField::create('_resendEmails', 'Resend Email')
+				->setValue(FieldType\DBField::create_field(FieldType\DBHTMLVarchar::class, implode("", $links))));
+		}
+
 		$fields->addFieldToTab('Root.Main', Forms\ReadonlyField::create('Created','Submitted At') );
 		$fields->addFieldToTab('Root.Main', Forms\ReadonlyField::create('PageName','Page Name') );
 
@@ -73,7 +93,6 @@ class Submission extends DataObject
 			$fields->addFieldToTab('Root.Main', $submissionValue->getReadonlyField());
 		}
 
-		$fields->addFieldToTab('Root.Raw', Forms\LiteralField::create('_rawData','<div><pre>'.print_r(unserialize($this->FormData),1 ).'</pre></div>'));
 		return $fields;
 	}
 

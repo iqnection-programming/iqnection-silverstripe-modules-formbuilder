@@ -4,6 +4,9 @@ namespace IQnection\FormBuilder\Control;
 
 use IQnection\FormBuilder\FormBuilder;
 use SilverStripe\Security\Security;
+use SilverStripe\View\Requirements;
+use IQnection\FormBuilder\Model\Submission;
+use IQnection\FormBuilder\Actions\SendEmailFormAction;
 
 class FormBuilderPreview extends \PageController
 {
@@ -13,14 +16,16 @@ class FormBuilderPreview extends \PageController
 
 	private static $allowed_actions = [
 		'preview',
-		'_confirm'
+		'_confirm',
+		'_resendsubmissions'
 	];
 
 	private static $url_segment = '_form-builder-preview';
 
 	private static $url_handlers = [
 		'preview/$FormBuilderID' => 'preview',
-		'_formbuilderSubmit/$FormBuilderID' => '_formbuilderSubmit'
+		'_formbuilderSubmit/$FormBuilderID' => '_formbuilderSubmit',
+		'_resendsubmissions/$SubmissionID/$FormActionID' => '_resendsubmissions'
 	];
 
 	public function index()
@@ -37,6 +42,24 @@ class FormBuilderPreview extends \PageController
 	public function PreviewLink($action = null)
 	{
 		return self::join_links('/',$this->Config()->get('url_segment'), 'preview', $action);
+	}
+
+	public function _resendsubmissions()
+	{
+		if (!Security::getCurrentUser())
+		{
+			return Security::permissionFailure($this);
+		}
+		if ( ($submission = Submission::get()->byId($this->getRequest()->param('SubmissionID'))) && ($emailAction = SendEmailFormAction::get()->byId($this->getRequest()->param('FormActionID'))) )
+		{
+			if (!$result = $emailAction->onFormSubmit($submission->FormBuilder()->generateForm($this, $submission->RawFormData()), $submission->RawFormData(), $submission))
+			{
+				print 'There was an error sending the email';
+				die();
+			}
+		}
+		print '<script>window.close();</script>';
+		die();
 	}
 
 	protected function _currentFormBuilder()
