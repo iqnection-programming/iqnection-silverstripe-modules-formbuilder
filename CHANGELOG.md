@@ -1,6 +1,11 @@
 ## Package: iqnection-silverstripe-modules-formbuilder
 # Change Log
 
+## 1.0.3
+- minor bug fixes
+- added ability to resend emails through SendEmailFormAction
+- began export/import FormBuilder forms feature
+
 ## 1.0.2
 - Improved duplication of forms
 - Added ability to resend submission emails

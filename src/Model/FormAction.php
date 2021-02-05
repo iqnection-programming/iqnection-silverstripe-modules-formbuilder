@@ -215,9 +215,14 @@ class FormAction extends DataObject
 				break;
 			case 'Match':
 				$selectionIds = $this->ConditionFieldSelections()->Column('ID');
-				if ( (is_array($fieldValue)) && (count($selectionIds)) && ($testField->hasExtension(SelectField::class)) )
+				if (!is_array($fieldValue))
 				{
-					foreach($testField->Options()->byIds($selectionIds)->Column('ID') as $testOption)
+					$fieldValue = [$fieldValue];
+				}
+				if ( (count($selectionIds)) && ($testField->hasExtension(SelectField::class)) )
+				{
+					$testOptions = $testField->Options()->byIds($selectionIds)->Column('ID');
+					foreach($testOptions as $testOption)
 					{
 						if (in_array($testOption, $fieldValue))
 						{

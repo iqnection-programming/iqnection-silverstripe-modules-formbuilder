@@ -72,7 +72,7 @@ class Submission extends DataObject
 		$links = [];
 		foreach($this->FormBuilder()->Actions() as $formAction)
 		{
-			if ($formAction instanceof SendEmailFormAction)
+			if ( ($formAction instanceof SendEmailFormAction) && ($formAction->testConditions($this->RawPostData())) )
 			{
 				$url = FormBuilderPreview::singleton()->Link(FormBuilderPreview::join_links('_resendsubmissions', $this->ID, $formAction->ID));
 				$recipients = $formAction->getRecipients($this);
@@ -128,6 +128,20 @@ class Submission extends DataObject
 			}
 		}
 		return parent::relField($field);
+	}
+
+	protected $_rawPostValues;
+	public function RawPostData()
+	{
+		if (is_null($this->_rawPostValues))
+		{
+			$this->_rawPostValues = [];
+			foreach($this->SubmissionFieldValues() as $submissionValue)
+			{
+				$this->_rawPostValues[$submissionValue->FormBuilderField()->getFrontendFieldName()] = unserialize($submissionValue->RawValue);
+			}
+		}
+		return $this->_rawPostValues;
 	}
 
 	protected $_formData;

@@ -184,8 +184,10 @@ class SendEmailFormAction extends FormAction
 
 	public function onFormSubmit($form, $data, $submission)
 	{
-		$email = $this->generateEmail($form, $data, $submission);
-		return $email->send();
+		if ($email = $this->generateEmail($form, $data, $submission))
+		{
+			return $email->send();
+		}
 	}
 
 	public function getRecipients($submission)

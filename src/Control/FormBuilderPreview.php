@@ -52,7 +52,7 @@ class FormBuilderPreview extends \PageController
 		}
 		if ( ($submission = Submission::get()->byId($this->getRequest()->param('SubmissionID'))) && ($emailAction = SendEmailFormAction::get()->byId($this->getRequest()->param('FormActionID'))) )
 		{
-			if (!$result = $emailAction->onFormSubmit($submission->FormBuilder()->generateForm($this, $submission->RawFormData()), $submission->RawFormData(), $submission))
+			if (!$result = $emailAction->onFormSubmit($submission->FormBuilder()->generateForm($this, $submission->RawPostData()), $submission->RawPostData(), $submission))
 			{
 				print 'There was an error sending the email';
 				die();

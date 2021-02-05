@@ -282,7 +282,6 @@ class FieldAction extends DataObject
 	public function Explain()
 	{
 		$conditions = [];
-		$text = '<div>Action: '.$this->singular_name().'</div>';
 		foreach($this->Children() as $conditionField)
 		{
 			$condition = $conditionField->Name.' ';
@@ -309,7 +308,7 @@ class FieldAction extends DataObject
 			$conditions[] = $condition;
 		}
 		$this->extend('updateExplanation', $conditions);
-		$text .= ' - Conditions: <ul><li>'.implode('</li><li>',$conditions).'</ul>';
+		$text .= '<div>Action: '.$this->singular_name().'</div> - Conditions: <ul><li>'.implode('</li><li>',$conditions).'</li></ul>';
 		return FieldType\DBField::create_field(FieldType\DBHTMLVarchar::class, $text);
 	}
 

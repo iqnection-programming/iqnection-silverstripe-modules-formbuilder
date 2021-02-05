@@ -89,7 +89,18 @@ class FieldGroupExtension extends DataExtension
 	{
 		foreach($this->owner->Fields() as $field)
 		{
-			$text .= $field->Explain();
+			if ($field->hasActions())
+			{
+				$text .= $field->Explain();
+			}
+		}
+	}
+
+	public function updateFieldExportData(&$data)
+	{
+		foreach($this->owner->Fields() as $field)
+		{
+			$data['children'][] = $field->getFieldExportData();
 		}
 	}
 

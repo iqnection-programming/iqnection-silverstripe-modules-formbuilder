@@ -129,9 +129,38 @@ class FormBuilder extends DataObject
 		{
 			$ConfirmationTextField->addExtraClass('stacked');
 		}
-		$fields->addFieldToTab('Root.FieldActions', Forms\LiteralField::create('_explain', '<div style="width:100%;overflow:scroll;"><div style="padding-bottom:6px;border-bottom:1px solid #999;">'.implode('</div><div style="padding-bottom:6px;;border-bottom:1px solid #999;">',$fieldAction_texts).'</div></div>'));
+		$fields->addFieldToTab('Root.FieldActions', Forms\LiteralField::create('_explain', '<div style="width:100%;overflow:scroll;"><div style="padding-bottom:6px;border-bottom:1px solid #999;">'.implode('<br /><hr><br />',$fieldAction_texts).'</div></div>'));
 
+if((defined('IS_IQ'))&&(IS_IQ))
+{
+		if ($this->Exists())
+		{
+			$fields->addFieldToTab('Root.Migrate', Forms\HeaderField::create('_migrateTitle', 'Export Data', 1));
+			$fields->addFieldToTab('Root.ExportData', Forms\TextareaField::create('_exportCode', 'Code')
+				->setRows(30)
+				->setValue(json_encode($this->getExportData())));
+		}
+}
 		return $fields;
+	}
+
+	public function getExportData()
+	{
+		$data = [];
+		foreach($this->toMap() as $fieldName => $fieldValue)
+		{
+			if (!preg_match('/ID$/', $fieldName))
+			{
+				$data[$fieldName] = $fieldValue;
+			}
+		}
+		unset($data['RecordClassName'], $data['LastEdited'], $data['Created']);
+		foreach($this->Fields() as $field)
+		{
+			$data['fields'][] = $field->getFieldExportData();
+		}
+		$this->extend('updateExportData', $data);
+		return $data;
 	}
 
 	public function validate()

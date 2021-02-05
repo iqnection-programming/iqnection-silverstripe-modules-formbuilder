@@ -366,6 +366,7 @@ window._formBuilders = [];
 			currentCount: 0,
 			countType: '',
 			countDisplay: null,
+			monitorTimer: 0,
 			init: function() {
 				this.countType = this.element.dataset.count;
 				this.countDisplay = $("<span/>");
@@ -373,11 +374,23 @@ window._formBuilders = [];
 					.addClass('form-builder-counter-display')
 					.text(this.countType.charAt(0).toUpperCase() + this.countType.slice(1) + ' Count: ')
 					.append(this.countDisplay));
-				$(this.element).on('keyup blur focus', function(){
+				$(this.element).on('keyup blur', function(){
 					this._formBuilderCounter.count();
+				});
+				$(this.element).on('focus', function(){
+					this._formBuilderCounter.monitor();
 				});
 				this.count();
 				return this;
+			},
+			monitor: function() {
+				var me = this;
+				me.monitorTimer = setInterval(function(){
+					me.count();
+				}, 500);
+				$(this.element).on('blur', function(){
+					clearInterval(me.monitorTimer);
+				})
 			},
 			count: function() {
 				switch(this.countType) {
@@ -413,7 +426,7 @@ window._formBuilders = [];
 			_displayCount: function(num) {
 				if (parseInt($(this.element).attr('data-current-count')) !== parseInt(num)) {
 					this.countDisplay.text(num);
-					$(this.element).attr('data-current-count', num).trigger('count-changed');
+					$(this.element).attr('data-current-count', num).trigger('count-changed').trigger('change');
 				}
 				return this;
 			}
