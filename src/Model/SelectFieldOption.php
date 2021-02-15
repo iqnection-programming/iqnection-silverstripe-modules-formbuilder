@@ -98,8 +98,6 @@ class SelectFieldOption extends DataObject
 	public function getOnLoadFieldSelectionActions($onLoadCondition = null)
 	{
 		$actions = [];
-		$fieldSelector = $this->Field()->getjQuerySelector();
-		$fieldOptionSelector = $this->getjQuerySelector(true);
 		// create the action if the option is hidden on form load
 		if ($this->HideByDefault)
 		{
@@ -108,10 +106,11 @@ class SelectFieldOption extends DataObject
 				'name' => $this->Field()->Name. ' Option: '.$this->Value,
 				'action' => [
 					'type' => 'Hidden on Load',
-					'selector' => $fieldOptionSelector,
+					'selector' => $this->getjQuerySelector(true),
 					'callback' => 'actionHideFieldOption',
 					'fieldType' => $this->Field()->singular_name(),
-					'fieldSelector' => $fieldSelector,
+					'fieldSelector' => $this->Field()->getjQuerySelector(),
+					'ownerId' => (int) $this->ID,
 				],
 				'conditions' => $onLoadCondition,
 				'conditionsHash' => 'onFormLoad'

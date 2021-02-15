@@ -322,6 +322,7 @@ class FieldAction extends DataObject
 				'selector' => $this->Parent()->getjQuerySelector(),
 				'fieldType' => $this->Parent()->singular_name(),
 				'callback' => null,
+				'ownerId' => (int) $this->ParentID
 			],
 			'conditions' => [],
 			'conditionsHash' => null

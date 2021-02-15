@@ -401,11 +401,12 @@ if((defined('IS_IQ'))&&(IS_IQ))
 				foreach($Field->Options() as $fieldOption)
 				{
 					$fieldOptionSelector = $fieldOption->getjQuerySelector(true);
-					$scripts['selectFieldOptions'][$fieldSelector][] = [
+					$scripts['selectFieldOptions'][$fieldSelector][$fieldOption->ID] = [
 						'value' => $fieldOption->ID,
 						'label' => $fieldOption->getOptionLabel()->Raw(),
 						'hidden' => (bool) $fieldOption->HideByDefault,
-						'selector' => $fieldOptionSelector
+						'selector' => $fieldOptionSelector,
+						'sort' => (int) $fieldOption->SortOrder
 					];
 					foreach($fieldOption->SelectionActions() as $fieldOptionAction)
 					{

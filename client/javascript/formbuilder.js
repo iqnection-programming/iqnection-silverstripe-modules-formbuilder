@@ -229,7 +229,10 @@ window._formBuilders = [];
 					return this.actionHideField(actionData, !result);
 				}
 				var $target = this._getFieldContainer(actionData.selector);
-				$target.show();
+				$target
+					.removeAttr('data-hidden')
+					.show()
+					.trigger('change');
 			},
 			// hides a field if the result is true
 			actionHideField: function(actionData, result) {
@@ -239,10 +242,16 @@ window._formBuilders = [];
 				if ($(actionData.selector).is('input,textarea,select')) {
 					if ($(actionData.selector).is('[type="checkbox"],[type="radio"]')) {
 						// unchech checkboxes and radios
-						$(actionData.selector).prop('checked', false);
+						$(actionData.selector)
+							.prop('checked', false)
+							.attr('data-hidden','1')
+							.trigger('change');
 					} else {
 						// clear out text inputs and dropdowns
-						$(actionData.selector).val('');
+						$(actionData.selector)
+							.val('')
+							.attr('data-hidden','1')
+							.trigger('change');
 					}
 				} else {
 					// unchech checkboxes and radios
@@ -255,17 +264,61 @@ window._formBuilders = [];
 				return this;
 			},
 			// adds a selection option if the result is true
+			_actionShowSelectFieldOption: function(actionData, result) {
+				var $option = this.hiddenSelectionValues[actionData.selector];
+				var selectOptions = this.selectFieldOptions[actionData.fieldSelector];
+				var $select = $(actionData.fieldSelector);
+				if ($(actionData.selector).length) {
+					$select.trigger('change');
+					return;
+				}
+				if ($option === undefined) {
+					// option was not store, create the element
+					$option = $('<option value="'+selectOptions[actionData.ownerId].value+'">'+selectOptions[actionData.ownerId].label+'</option>');
+				}
+				// sort the options
+				var existingSelection = $select.val();
+				// add the option element to the DOM
+				$select.append($option);
+				var $selectOptions = $select.find('option');
+				$select.empty();
+				$selectOptions.sort(function(a, b) {
+					var aVal = selectOptions[parseInt(a.value, 10)] || {sort: -1};
+					var bVal = selectOptions[parseInt(b.value, 10)] || {sort: -1};
+					return aVal.sort > bVal.sort;
+				}).appendTo($select);
+				setTimeout(function(){
+					$select.val(existingSelection).trigger('change');
+				}, 0);
+			},
 			actionShowFieldOption: function(actionData, result) {
 				// get this target field
 				if (!result) {
 					return this.actionHideFieldOption(actionData, !result);
 				}
+				// is this a <select> element
+				if ($(actionData.fieldSelector).is('select')) {
+					return this._actionShowSelectFieldOption(actionData, result);
+				}
+				// element should still be in the DOM
 				var $target = this._getSelectionContainer(actionData.selector);
 				if (!$target.length) {
-					console.warn('Form Builder action to show field option, but field container is not found', actionData);
+					console.warn('Form Builder action to show field option, but field option is not found', actionData);
 					return;
 				}
-				$target.show();
+				// display the element
+				$target.show().trigger('change');
+			},
+			_actionHideSelectFieldOption: function(actionData, result) {
+				var $option = $(actionData.selector);
+				if (!$option.length) {
+					return;
+				}
+				// store the element for safe keeping
+				this.hiddenSelectionValues[actionData.selector] = $option.clone();
+				// remove it from the DOM
+				$(actionData.selector).val('').remove();
+				$(actionData.fieldSelector).trigger('change');
 			},
 			// removes a selection option if the result is true
 			actionHideFieldOption: function(actionData, result) {
@@ -275,14 +328,13 @@ window._formBuilders = [];
 				// get this target field
 				var $target = this._getSelectionContainer(actionData.selector);
 				if (!$target.length) {
-					console.warn('Form Builder action to hide field option, but field container is not found', actionData);
+					console.warn('Form Builder action to hide field option, but field option is not found', actionData);
 					return;
 				}
 				if ($target.is('option')) {
-					$target.prop('selected', false);
-				} else {
-					$target.prop('checked',false);
+					return this._actionHideSelectFieldOption(actionData, result);
 				}
+				$target.prop('checked',false).trigger('change');
 				$target.hide();
 			},
 			// form state functions
@@ -293,14 +345,11 @@ window._formBuilders = [];
 			},
 			// field state functions
 			stateMatchAny: function(condition) {
-				console.log(condition);
 				if ((condition.config.matchValue !== undefined) && (condition.config.matchValue !== undefined) && (condition.config.matchValue.length)) {
 					var values = Object.values(condition.config.matchValue);
 					var fieldValue = $(condition.selector).first().val().toString();
-					console.log('field Value', fieldValue);
 					for(var i=0; i<values.length; i++) {
 						if (fieldValue === values[i].toString()) {
-							console.log('true');
 							return true;
 						}
 					}

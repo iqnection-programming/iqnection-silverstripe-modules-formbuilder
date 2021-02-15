@@ -79,7 +79,10 @@ class FormBuilderPreview extends \PageController
 		{
 			return Security::permissionFailure($this);
 		}
-		$formBuilder = $this->_currentFormBuilder();
+		if (!$formBuilder = $this->_currentFormBuilder())
+		{
+			return $this->redirect('/');
+		}
 		$this->Title = 'Preview: '.($formBuilder ? $formBuilder->Title : 'Not Found');
 		$this->MetaTitle = 'Preview: '.($formBuilder ? $formBuilder->Title : 'Not Found');
 		return $this->Customise(['FormBuilder' => $formBuilder])->renderWith(['FormBuilderPreview_preview','Page']);

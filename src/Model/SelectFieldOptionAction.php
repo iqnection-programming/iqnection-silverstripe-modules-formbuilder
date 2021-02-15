@@ -224,6 +224,7 @@ class SelectFieldOptionAction extends DataObject
 				'callback' => null,
 				'fieldType' => $this->Parent()->Field()->singular_name(),
 				'fieldSelector' => $this->Parent()->Field()->getjQuerySelector(false),
+				'ownerId' => (int) $this->ParentID,
 			],
 			'conditions' => [],
 			'conditionsHash' => null

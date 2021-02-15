@@ -231,6 +231,7 @@ class Field extends DataObject
 					'selector' => $fieldSelector,
 					'fieldType' => $this->singular_name(),
 					'callback' => 'actionHideField',
+					'ownerId' => (int) $this->ID
 				],
 				'conditions' => [$onLoadCondition],
 				'conditionsHash' => 'onFormLoad'
