@@ -178,13 +178,14 @@ class FieldAction extends DataObject
 
 		foreach($this->Children() as $child)
 		{
-			if (!$child->isHidden($submittedValues))
+			if ($child->isHidden($submittedValues))
 			{
-				if (!$this->testCondition($child->State, $child, $submittedValues))
-				{
-					$result = false;
-					break;
-				}
+				$submittedValues[$child->getFrontendFieldName()] = null;
+			}
+			if (!$this->testCondition($child->State, $child, $submittedValues))
+			{
+				$result = false;
+				break;
 			}
 		}
 		$this->extend('updateTestConditions', $result, $submittedValues);
@@ -210,12 +211,12 @@ class FieldAction extends DataObject
 				}
 				break;
 			case 'match':
-				$selectionIds = $this->ChildSelections()->Column('ID');
-				if (count($selectionIds))
+				$matchSelectionIds = $this->ChildSelections()->Column('ID');
+				if ( (!is_null($fieldValue)) && (count($matchSelectionIds)) )
 				{
 					if ( (is_array($fieldValue)) && ($testField->hasExtension(SelectField::class)) )
 					{
-						foreach($testField->Options()->byIds($selectionIds)->Column('ID') as $testOption)
+						foreach($testField->Options()->byIds($matchSelectionIds)->Column('ID') as $testOption)
 						{
 							if (in_array($testOption, $fieldValue))
 							{
@@ -225,7 +226,7 @@ class FieldAction extends DataObject
 					}
 					else
 					{
-						if (in_array($fieldValue, $selectionIds))
+						if (in_array($fieldValue, $matchSelectionIds))
 						{
 							return true;
 						}
