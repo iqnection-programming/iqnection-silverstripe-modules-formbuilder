@@ -73,4 +73,6 @@ class SubmissionFieldValue extends DataObject
 		}
 		return $field;
 	}
+
+	public function DebugInfo() { }
 }

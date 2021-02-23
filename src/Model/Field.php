@@ -220,7 +220,6 @@ class Field extends DataObject
 	public function getOnLoadFieldActions($onLoadCondition = null)
 	{
 		$actions = [];
-		$fieldSelector = $this->getjQuerySelector();
 		if ($this->HideByDefault)
 		{
 			$actions[] = [
@@ -228,7 +227,7 @@ class Field extends DataObject
 				'name' => 'Field: '.$this->Name,
 				'action' => [
 					'type' => 'Hidden on Load',
-					'selector' => $fieldSelector,
+					'selector' => $this->getjQuerySelector(),
 					'fieldType' => $this->singular_name(),
 					'callback' => 'actionHideField',
 					'ownerId' => (int) $this->ID

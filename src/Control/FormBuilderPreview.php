@@ -31,7 +31,6 @@ class FormBuilderPreview extends \PageController
 	public function index()
 	{
 		return $this->preview();
-		return $this->redirect('/');
 	}
 
 	public function Link($action = null)
