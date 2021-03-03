@@ -456,12 +456,12 @@ window._formBuilders = [];
 				if (this.element.value === "") {
 					return this._displayCount(0);
 				}
-				return this._displayCount(this.element
-					.value	// get the field valule
-					.trim()	// trim off any white space
-					.replace(/\s{2,}/,' ')	// correct any double spaces
-					.split(' ')	// split by the space character
-					.length);	// count the words
+				var value = this.element.value	// get the field value
+					.replace(/(\n|\t|\r)+/ig,' ') // replace new lines and tabs with spaces
+					.replace(/[()%\[\]=+\-*\/\>\<]/ig, '') // remove certain special characters
+					.replace(/\s{2,}/ig, ' ') // correct multiple spaces
+					.trim(); // trim off any white space
+				return this._displayCount(value.split(' ').length);	// split by the space character
 			},
 			countCharacters: function() {
 				if (this.element.value === "") {

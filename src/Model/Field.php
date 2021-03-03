@@ -441,6 +441,21 @@ class Field extends DataObject
 	public function handleEvent($event, $form, $data, $submission)
 	{ }
 
+	public function CountWords($words)
+	{
+		// remove new lines
+		$words = preg_replace('/(\n|\t|\r)+/',' ', $words);
+		// remove characters that should not be counted as possible words
+		$words = preg_replace('/[()%\[\]=+\-*\/\>\<]/','',$words);
+		// remove multiple spaces
+		$words = preg_replace('/\s{2,}/',' ', $words);
+		// remove beginning or trailing spaces
+		$words = trim($words, ' ');
+		// separate words to count
+		$words = explode(' ', $words);
+		return count($words);
+	}
+
 	/**
 	 * builds an array of rules and/or messages to provide to jQuery.validate for building validation
 	 * values of "rule" and "message" should be formated with keys and values

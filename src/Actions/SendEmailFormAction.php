@@ -57,7 +57,7 @@ class SendEmailFormAction extends FormAction
 				->setSource($emailFields)
 		]));
 		$fields->insertAfter('FromName', Forms\FieldGroup::create('Send To', [
-			Forms\TextField::create('To','Enter Email')->setDescription('(Optional) Defaults to From address'),
+			Forms\TextField::create('To','Enter Email')->setDescription("(Optional) Defaults to From address\nSeparate multiple email addresses with a comma"),
 			Forms\CheckboxSetField::create('EmailFields','Available Email fields from the form')
 				->setSource($emailFields)
 		]));
@@ -106,6 +106,19 @@ class SendEmailFormAction extends FormAction
 		if ( (!$this->To) && (!$this->EmailFields()->Count()) )
 		{
 			$result->addError('You must set a recipient, or select form email fields');
+		}
+		foreach(['To','ReplyTo','CC','BCC'] as $fieldName)
+		{
+			if ($this->{$fieldName})
+			{
+				$fieldValue = preg_replace('/\s/','',$this->{$fieldName});
+				$this->{$fieldName} = $fieldValue;
+				$emailCount = substr_count($fieldValue, '@');
+				if ((substr_count($fieldValue, ',') + 1) != $emailCount)
+				{
+					$result->addFieldError($fieldName, 'Multiple email addresses must be separated with a comma');
+				}
+			}
 		}
 		return $result;
 	}

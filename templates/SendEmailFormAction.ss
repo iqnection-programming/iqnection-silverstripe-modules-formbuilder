@@ -4,8 +4,16 @@ $Action.Body
 
 	<table border="1" cellspacing="0" cellpadding="2" style="width:100%; background-color:#FFFFFF; font-size:16px;" class="submissions-table">
 	<tr>
-		<td>Submitted On:</td>
-		<td>$Submission.Page.Breadcrumbs(20, 1, 0, 1)</td>
+		<th align="left" width="30%" valign="top">Submitted On:</th>
+		<td width="70%" valign="top">$Submission.Page.Breadcrumbs(20, 1, 0, 1)</td>
+	</tr>
+	<tr>
+		<th align="left" width="30%" valign="top">Submission ID:</th>
+		<td width="70%" valign="top">$Submission.ID</td>
+	</tr>
+	<tr>
+		<th align="left" width="30%" valign="top">Submission Date:</th>
+		<td width="70%" valign="top">$Submission.Created.Nice</td>
 	</tr>
 	<% loop $Submission.SubmissionFieldValues %>
 		<tr>
