@@ -66,7 +66,22 @@ class SubmissionFieldValue extends DataObject
 
 	public function getReadonlyField()
 	{
-		$field = Forms\ReadonlyField::create($this->Name,$this->Label)->setValue($this->Value);
+		if (!$label = $this->Label)
+		{
+			$label = $this->FormBuilderField()->Label;
+		}
+		if (!$name = $this->Name)
+		{
+			if (!$name = $this->FormBuilderField()->Name)
+			{
+				$name = $label;
+			}
+		}
+		if (!$label && $name)
+		{
+			$label = $name;
+		}
+		$field = Forms\ReadonlyField::create($name,$label)->setValue($this->Value);
 		if ($this->File()->Exists())
 		{
 			$field->setValue(FieldType\DBField::create_field(FieldType\DBHTMLVarchar::class,'<a href="'.$this->File()->getAbsoluteURL().'" target="_blank">'.$this->File()->Name.'</a>'));

@@ -123,76 +123,82 @@ class SendEmailFormAction extends FormAction
 		return $result;
 	}
 
+	protected $_email;
 	public function generateEmail($form, $data, $submission)
 	{
-		// test the conditions
-		if (!$this->testConditions($data))
+		if (is_null($this->_email))
 		{
-			return null;
-		}
+			$this->_email = false;
+			// test the conditions
+			if (!$this->testConditions($data))
+			{
+				return null;
+			}
 
-		// Send the email
-		$email = Email::create()
-			->setFrom($this->FromEmail)
-			->setSubject($this->Subject)
-			->setData(['Action' => $this, 'Submission' => $submission])
-			->setHTMLTemplate('SendEmailFormAction');
-		if ($this->FromName)
-		{
-			$email->setFrom($this->FromEmail, $this->FromName);
-		}
-		if ($this->ReplyTo)
-		{
-			$email->addReplyTo($this->ReplyTo);
-		}
-		foreach($this->ReplyToEmailFields() as $emailField)
-		{
-			if ( ($submittedValue = $submission->SubmissionFieldValues()->Find('FormBuilderFieldID', $emailField->ID)) && (trim($submittedValue->Value)) )
+			// Send the email
+			$email = Email::create()
+				->setFrom($this->FromEmail)
+				->setSubject($this->Subject)
+				->setData(['Action' => $this, 'Submission' => $submission])
+				->setHTMLTemplate('SendEmailFormAction');
+			if ($this->FromName)
 			{
-				$email->addReplyTo(trim($submittedValue->Value));
+				$email->setFrom($this->FromEmail, $this->FromName);
 			}
-		}
-		if (trim($this->To))
-		{
-			foreach(explode(',',$this->To) as $to)
+			if ($this->ReplyTo)
 			{
-				$email->addTo(trim($to));
+				$email->addReplyTo($this->ReplyTo);
 			}
-		}
-		if (trim($this->CC))
-		{
-			foreach(explode(',',$this->CC) as $CC)
+			foreach($this->ReplyToEmailFields() as $emailField)
 			{
-				$email->addCC(trim($CC));
-			}
-		}
-		if (trim($this->BCC))
-		{
-			foreach(explode(',',$this->BCC) as $BCC)
-			{
-				$email->addBCC(trim($BCC));
-			}
-		}
-		foreach($this->EmailFields() as $emailField)
-		{
-			if ( ($submittedValue = $submission->SubmissionFieldValues()->Find('FormBuilderFieldID', $emailField->ID)) && (trim($submittedValue->Value)) )
-			{
-				$email->addTo(trim($submittedValue->Value));
-			}
-		}
-		if ($this->AttachUploadedFiles)
-		{
-			foreach($submission->SubmissionFieldValues()->Exclude('FileID',0) as $uploadFieldValue)
-			{
-				$file = $uploadFieldValue->File();
-				if ($file->Exists())
+				if ( ($submittedValue = $submission->SubmissionFieldValues()->Find('FormBuilderFieldID', $emailField->ID)) && (trim($submittedValue->Value)) )
 				{
-					$email->addAttachmentFromData($file->getString(), $file->getFilename());
+					$email->addReplyTo(trim($submittedValue->Value));
 				}
 			}
+			if (trim($this->To))
+			{
+				foreach(explode(',',$this->To) as $to)
+				{
+					$email->addTo(trim($to));
+				}
+			}
+			if (trim($this->CC))
+			{
+				foreach(explode(',',$this->CC) as $CC)
+				{
+					$email->addCC(trim($CC));
+				}
+			}
+			if (trim($this->BCC))
+			{
+				foreach(explode(',',$this->BCC) as $BCC)
+				{
+					$email->addBCC(trim($BCC));
+				}
+			}
+			foreach($this->EmailFields() as $emailField)
+			{
+				if ( ($submittedValue = $submission->SubmissionFieldValues()->Find('FormBuilderFieldID', $emailField->ID)) && (trim($submittedValue->Value)) )
+				{
+					$email->addTo(trim($submittedValue->Value));
+				}
+			}
+			if ($this->AttachUploadedFiles)
+			{
+				foreach($submission->SubmissionFieldValues()->Exclude('FileID',0) as $uploadFieldValue)
+				{
+					$file = $uploadFieldValue->File();
+					if ($file->Exists())
+					{
+						$email->addAttachmentFromData($file->getString(), $file->getFilename());
+					}
+				}
+			}
+			$this->extend('updateEmail', $email, $form, $data, $submission);
+			$this->_email = $email;
 		}
-		$this->extend('updateEmail', $email, $form, $data, $submission);
-		return $email;
+		return $this->_email;
 	}
 
 	public function onFormSubmit($form, $data, $submission)

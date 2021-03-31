@@ -7,14 +7,6 @@ $Action.Body
 		<th align="left" width="30%" valign="top">Submitted On:</th>
 		<td width="70%" valign="top">$Submission.Page.Breadcrumbs(20, 1, 0, 1)</td>
 	</tr>
-	<tr>
-		<th align="left" width="30%" valign="top">Submission ID:</th>
-		<td width="70%" valign="top">$Submission.ID</td>
-	</tr>
-	<tr>
-		<th align="left" width="30%" valign="top">Submission Date:</th>
-		<td width="70%" valign="top">$Submission.Created.Nice</td>
-	</tr>
 	<% loop $Submission.SubmissionFieldValues %>
 		<tr>
 			<th align="left" width="30%" valign="top">$Title:</th>
@@ -36,6 +28,8 @@ $Action.Body
 	<table>
 <% end_if %>
 
+<div style="font-size:12px; font-style:italic;">Submission ID: $Submission.ID</div>
+<div style="font-size:12px; font-style:italic;">Submission Date: $Submission.Created.Nice</div>
 
 <style type="text/css">
 .submissions-table { border-color:#999999; font-size:16px; }

@@ -68,6 +68,7 @@ class FormBuilder extends DataObject
 	protected $_form;
 	public static $_original_objects = [];
 	public static $_duplicated_objects = [];
+	public static $_duplicating_form = false;
 
 	public function getCMSFields()
 	{
@@ -131,36 +132,7 @@ class FormBuilder extends DataObject
 		}
 		$fields->addFieldToTab('Root.FieldActions', Forms\LiteralField::create('_explain', '<div style="width:100%;overflow:scroll;"><div style="padding-bottom:6px;border-bottom:1px solid #999;">'.implode('<br /><hr><br />',$fieldAction_texts).'</div></div>'));
 
-if((defined('IS_IQ'))&&(IS_IQ))
-{
-		if ($this->Exists())
-		{
-			$fields->addFieldToTab('Root.Migrate', Forms\HeaderField::create('_migrateTitle', 'Export Data', 1));
-			$fields->addFieldToTab('Root.ExportData', Forms\TextareaField::create('_exportCode', 'Code')
-				->setRows(30)
-				->setValue(json_encode($this->getExportData())));
-		}
-}
 		return $fields;
-	}
-
-	public function getExportData()
-	{
-		$data = [];
-		foreach($this->toMap() as $fieldName => $fieldValue)
-		{
-			if (!preg_match('/ID$/', $fieldName))
-			{
-				$data[$fieldName] = $fieldValue;
-			}
-		}
-		unset($data['RecordClassName'], $data['LastEdited'], $data['Created']);
-		foreach($this->Fields() as $field)
-		{
-			$data['fields'][] = $field->getFieldExportData();
-		}
-		$this->extend('updateExportData', $data);
-		return $data;
 	}
 
 	public function validate()
@@ -195,6 +167,7 @@ if((defined('IS_IQ'))&&(IS_IQ))
 
 	public function onBeforeDuplicate($original, $doWrite, $relations)
 	{
+		self::$_duplicating_form = true;
 		$baseTitle = 'Copy of '.$original->Title;
 		$this->Title = $baseTitle;
 		$count = 0;
@@ -205,21 +178,21 @@ if((defined('IS_IQ'))&&(IS_IQ))
 		}
 	}
 
-	public function onAfterDuplicate($original, $doWrite, $relations)
-	{
-		foreach($this->Actions() as $formBuilderAction)
-		{
-			$formBuilderAction->invokeWithExtensions('onAfterDuplicate_FormBuilder');
-		}
-
-		foreach($this->FieldsFlat() as $formBuilderField)
-		{
-			$formBuilderField->invokeWithExtensions('onAfterDuplicate_FormBuilder');
-			// copying a field prepends the field with "Copy of ", we need to remove that number
-			$formBuilderField->Name = trim(preg_replace('/^Copy of/','',$formBuilderField->Name));
-			$formBuilderField->write();
-		}
-	}
+//	public function onAfterDuplicate($original, $doWrite, $relations)
+//	{
+//		foreach($this->Actions() as $formBuilderAction)
+//		{
+//			$formBuilderAction->invokeWithExtensions('onAfterDuplicate_FormBuilder');
+//		}
+//
+//		foreach($this->FieldsFlat() as $formBuilderField)
+//		{
+//			$formBuilderField->invokeWithExtensions('onAfterDuplicate_FormBuilder');
+//			// copying a field prepends the field with "Copy of ", we need to remove that number
+//			$formBuilderField->Name = trim(preg_replace('/^Copy of/','',$formBuilderField->Name));
+//			$formBuilderField->write();
+//		}
+//	}
 
 	public function clearAllCache()
 	{

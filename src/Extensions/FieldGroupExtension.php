@@ -96,14 +96,6 @@ class FieldGroupExtension extends DataExtension
 		}
 	}
 
-	public function updateFieldExportData(&$data)
-	{
-		foreach($this->owner->Fields() as $field)
-		{
-			$data['children'][] = $field->getFieldExportData();
-		}
-	}
-
 	public function CanAddField()
 	{
 		if ($max_fields = $this->owner->Config()->get('max_fields'))

@@ -126,24 +126,13 @@ class Field extends DataObject
 		return $fields;
 	}
 
-	public function getFieldExportData()
-	{
-		$data = [];
-		foreach($this->toMap() as $fieldName => $fieldValue)
-		{
-			if (!preg_match('/ID$/', $fieldName))
-			{
-				$data[$fieldName] = $fieldValue;
-			}
-		}
-		unset($data['RecordClassName'], $data['LastEdited'], $data['Created'], $data['ContainerClass']);
-		$this->invokeWithExtensions('updateFieldExportData', $data);
-		return $data;
-	}
-
 	public function onBeforeDuplicate($original, $doWrite, $relations)
 	{
-		$this->Name = $name = 'Copy of '.$original->Name;
+		$this->ContainerID = 0;
+		if (!FormBuilder::$_duplicating_form)
+		{
+			$this->Name = 'Copy of '.$original->Name;
+		}
 	}
 
 	public function ConditionOptionsField(&$fieldAction, $fieldName = null)

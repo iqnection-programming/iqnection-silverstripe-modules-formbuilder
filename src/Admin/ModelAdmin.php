@@ -19,8 +19,8 @@ class ModelAdmin extends \SilverStripe\Admin\ModelAdmin
 	private static $menu_icon_class = 'font-icon-block-form';
 	
 	public $showImportForm = false;
-	public $showSearchForm = false;
-	
+//	public $showSearchForm = false;
+
 	public function getEditForm($id = null, $fields = null)
     {
 		$form = parent::getEditForm($id, $fields);

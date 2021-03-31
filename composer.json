@@ -25,7 +25,7 @@
 	},
 	"autoload": {
 		"psr-4": {
-			"IQnection\\FormBuilder\\": "app/src/"
+			"IQnection\\FormBuilder\\": "src/"
 		}
 	}
 }

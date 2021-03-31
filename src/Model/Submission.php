@@ -86,13 +86,26 @@ class Submission extends DataObject
 		}
 
 		$fields->addFieldToTab('Root.Main', Forms\ReadonlyField::create('Created','Submitted At') );
-		$fields->addFieldToTab('Root.Main', Forms\ReadonlyField::create('PageName','Page Name') );
+		if ( (!$this->PageName) && ($this->Page()->Exists()) )
+		{
+			$this->PageName = (string) $this->Page()->Breadcrumbs(20, true, false, true);
+			$this->PageName = trim($this->PageName);
+			$this->write();
+		}
+		$fields->addFieldToTab('Root.Main', Forms\HTMLReadonlyField::create('PageName','Page Name') );
 
+		$rawFieldData = [];
 		foreach($this->SubmissionFieldValues() as $submissionValue)
 		{
 			$fields->addFieldToTab('Root.Main', $submissionValue->getReadonlyField());
+			$rawFieldData[] = $submissionValue->DebugInfo();
 		}
 
+if((defined('IS_IQ'))&&(IS_IQ)) {
+		$fields->addFieldToTab('Root.Raw', Forms\LiteralField::create('_rawPost','<pre>'.print_r($this->RawPostData(), 1).'</pre>'));
+		$rawFieldData = array_filter($rawFieldData);
+		$fields->addFieldToTab('Root.Fields Debug', Forms\LiteralField::create('_fieldsDebug','<pre>'.print_r($rawFieldData, 1).'</pre>'));
+}
 		return $fields;
 	}
 
