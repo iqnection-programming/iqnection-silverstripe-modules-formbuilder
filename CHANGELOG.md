@@ -1,6 +1,10 @@
 ## Package: iqnection-silverstripe-modules-formbuilder
 # Change Log
 
+## 1.0.5
+- General Improvements
+- Added default records to build contact form
+
 ## 1.0.4
 - bug fixes
 

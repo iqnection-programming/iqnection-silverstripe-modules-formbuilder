@@ -17,13 +17,17 @@ class FormBuilderPreview extends \PageController
 	private static $allowed_actions = [
 		'preview',
 		'_confirm',
-		'_resendsubmissions'
+		'_resendsubmissions',
+		'_export',
+		'_import'
 	];
 
 	private static $url_segment = '_form-builder-preview';
 
 	private static $url_handlers = [
-		'preview/$FormBuilderID' => 'preview',
+        'preview/$FormBuilderID' => 'preview',
+        '_export/$FormBuilderID' => '_export',
+		'_import/$FormBuilderID' => '_import',
 		'_formbuilderSubmit/$FormBuilderID' => '_formbuilderSubmit',
 		'_resendsubmissions/$SubmissionID/$FormActionID' => '_resendsubmissions'
 	];
@@ -41,6 +45,31 @@ class FormBuilderPreview extends \PageController
 	public function PreviewLink($action = null)
 	{
 		return self::join_links('/',$this->Config()->get('url_segment'), 'preview', $action);
+	}
+
+	public function _export($request)
+	{
+		if (!$formBuilder = $this->_currentFormBuilder())
+		{
+			return $this->httpError(404);
+		}
+		$exportData = $formBuilder->ExportConfig();
+
+        return $this->getResponse()->addHeader('content-type','application/json')->setBody(json_encode($exportData));
+	}
+
+	public function _import($request)
+	{
+		$dataPath = __DIR__.DIRECTORY_SEPARATOR.'..'.DIRECTORY_SEPARATOR.'..'.DIRECTORY_SEPARATOR.'data'.DIRECTORY_SEPARATOR.'contact-form.json';
+        if (file_Exists($dataPath))
+        {
+            $data = json_decode(file_get_contents($dataPath), 1);
+            if (!$fb = FormBuilder::get()->Find('Title', $data['Title']))
+            {
+                $fb = FormBuilder::create();
+            }
+            $fb->Importconfig($data);
+        }
 	}
 
 	public function _resendsubmissions()

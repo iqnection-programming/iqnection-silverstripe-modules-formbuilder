@@ -16,10 +16,6 @@ use IQnection\FormBuilder\Extensions\Cacheable;
 
 class FieldGroupExtension extends DataExtension
 {
-	private static $extensions = [
-		Cacheable::class
-	];
-
 	private static $has_many = [
 		'Fields' => Field::class
 	];
@@ -29,6 +25,10 @@ class FieldGroupExtension extends DataExtension
 	];
 
 	private static $cascade_caches = [
+		'Fields'
+	];
+
+	private static $export_config_components = [
 		'Fields'
 	];
 

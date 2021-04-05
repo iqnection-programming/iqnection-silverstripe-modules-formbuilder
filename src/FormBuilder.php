@@ -2,28 +2,30 @@
 
 namespace IQnection\FormBuilder;
 
-use SilverStripe\ORM\DataObject;
-use SilverStripe\Forms;
+use IQnection\FormBuilder\Cache\Cache;
+use IQnection\FormBuilder\Control\FormBuilderPreview;
+use IQnection\FormBuilder\Control\FormHandler;
+use IQnection\FormBuilder\Extensions\Cacheable;
+use IQnection\FormBuilder\Extensions\Exportable;
 use IQnection\FormBuilder\Extensions\FieldGroupExtension;
 use IQnection\FormBuilder\Extensions\SelectField;
+use IQnection\FormBuilder\Forms\GridField\SubmissionsExportButton;
+use IQnection\FormBuilder\Forms\Validator;
+use IQnection\FormBuilder\Model\Submission;
+use IQnection\FormBuilder\Model\FormAction;
 use IQnection\FormBuilder\Shortcode\ShortcodeParser;
-use IQnection\FormBuilder\Control\FormHandler;
 use SilverStripe\Control\Controller;
 use SilverStripe\Control\Director;
 use SilverStripe\Control\HTTPResponse;
 use SilverStripe\Core\Injector\Injector;
+use SilverStripe\Forms;
+use SilverStripe\ORM\DataObject;
+use SilverStripe\ORM\DB;
+use SilverStripe\ORM\FieldType;
 use SilverStripe\View\Requirements;
-use IQnection\FormBuilder\Forms\Validator;
-use IQnection\FormBuilder\Model\FormAction;
-use IQnection\FormBuilder\Model\Submission;
 use Symbiote\GridFieldExtensions\GridFieldAddNewMultiClass;
 use UndefinedOffset\SortableGridField\Forms\GridFieldSortableRows;
 use SwiftDevLabs\DuplicateDataObject\Forms\GridField\GridFieldDuplicateAction;
-use IQnection\FormBuilder\Control\FormBuilderPreview;
-use IQnection\FormBuilder\Forms\GridField\SubmissionsExportButton;
-use IQnection\FormBuilder\Extensions\Cacheable;
-use IQnection\FormBuilder\Cache\Cache;
-use SilverStripe\ORM\FieldType;
 
 class FormBuilder extends DataObject
 {
@@ -36,7 +38,8 @@ class FormBuilder extends DataObject
 
 	private static $extensions = [
 		FieldGroupExtension::class,
-		Cacheable::class
+		Cacheable::class,
+		Exportable::class
 	];
 
 	private static $db = [
@@ -65,6 +68,14 @@ class FormBuilder extends DataObject
 		'Actions'
 	];
 
+	private static $export_config_fields = [
+		'Title',
+		'SubmitText',
+		'ConfirmationText',
+	];
+
+    private static $import_unique_field = 'Title';
+
 	protected $_form;
 	public static $_original_objects = [];
 	public static $_duplicated_objects = [];
@@ -75,14 +86,16 @@ class FormBuilder extends DataObject
 		$fields = parent::getCMSFields();
 		$fields->removeByName(['JsValidationCache']);
 		$fields->dataFieldByName('Title')->setDescription('For internal purposes only');
-		if ($this->Exists())
+		if (!$this->Exists())
 		{
-			$fields->insertBefore('Title',Forms\TextField::create('Shortcode','Shortcode')
-				->setValue(ShortcodeParser::generateShortcode($this))
-				->setReadonly(true)
-				->setAttribute('onclick', 'javascript:select(this);')
-				->setDescription(FieldType\DBField::create_field(FieldType\DBHTMLVarchar::class, 'Copy this short code and paste on any page where you want to display this form<br /><a href="'.FormBuilderPreview::singleton()->PreviewLink($this->ID).'" target="_blank">Preview Form</a>')));
-		}
+            		return $fields;
+        	}
+		$fields->insertBefore('Title',Forms\TextField::create('Shortcode','Shortcode')
+			->setValue(ShortcodeParser::generateShortcode($this))
+			->setReadonly(true)
+			->setAttribute('onclick', 'javascript:select(this);')
+			->setDescription(FieldType\DBField::create_field(FieldType\DBHTMLVarchar::class, '<span>Copy this short code and paste on any page where you want to display this form
+<br /><a href="'.FormBuilderPreview::singleton()->PreviewLink($this->ID).'" target="_blank">Preview/Test Form &raquo;</a></span>')));
 		if ($submissions_fg = $fields->dataFieldByName('Submissions'))
 		{
 			$submissions_fg->getConfig()->addComponent(new SubmissionsExportButton());
@@ -99,24 +112,17 @@ class FormBuilder extends DataObject
 			}
 		}
 
-		if (!$this->Exists())
-		{
-			$fields->addFieldToTab('Root.Form Actions', Forms\HeaderField::create('_actionsWarning','You must save before adding actions'));
-		}
-		else
-		{
-			$fields->addFieldToTab('Root.Form Actions', Forms\GridField\GridField::create(
-				'Actions',
-				'Actions',
-				$this->Actions(),
-				Forms\GridField\GridFieldConfig_RecordEditor::create(100)
-					->addComponent($GridFieldAddNewMultiClass_Actions = new GridFieldAddNewMultiClass())
-					->removeComponentsByType(Forms\GridField\GridFieldFilterHeader::class)
-					->removeComponentsByType(Forms\GridField\GridFieldAddNewButton::class)
-					->addComponent(new GridFieldDuplicateAction())
-			));
-			$GridFieldAddNewMultiClass_Actions->setTitle('Add Action');
-		}
+		$fields->addFieldToTab('Root.Form Actions', Forms\GridField\GridField::create(
+			'Actions',
+			'Actions',
+			$this->Actions(),
+			Forms\GridField\GridFieldConfig_RecordEditor::create(100)
+				->addComponent($GridFieldAddNewMultiClass_Actions = new GridFieldAddNewMultiClass())
+				->removeComponentsByType(Forms\GridField\GridFieldFilterHeader::class)
+				->removeComponentsByType(Forms\GridField\GridFieldAddNewButton::class)
+				->addComponent(new GridFieldDuplicateAction())
+		));
+		$GridFieldAddNewMultiClass_Actions->setTitle('Add Action');
 
 		$fieldAction_texts = [];
 		foreach($this->Fields() as $formBuilderField)
@@ -178,21 +184,18 @@ class FormBuilder extends DataObject
 		}
 	}
 
-//	public function onAfterDuplicate($original, $doWrite, $relations)
-//	{
-//		foreach($this->Actions() as $formBuilderAction)
-//		{
-//			$formBuilderAction->invokeWithExtensions('onAfterDuplicate_FormBuilder');
-//		}
-//
-//		foreach($this->FieldsFlat() as $formBuilderField)
-//		{
-//			$formBuilderField->invokeWithExtensions('onAfterDuplicate_FormBuilder');
-//			// copying a field prepends the field with "Copy of ", we need to remove that number
-//			$formBuilderField->Name = trim(preg_replace('/^Copy of/','',$formBuilderField->Name));
-//			$formBuilderField->write();
-//		}
-//	}
+	public function requireDefaultRecords()
+	{
+		parent::requireDefaultRecords();
+        	$dataPath = __DIR__.DIRECTORY_SEPARATOR.'..'.DIRECTORY_SEPARATOR.'data'.DIRECTORY_SEPARATOR.'contact-form.json';
+		if ( (!FormBuilder::get()->Count()) && (file_Exists($dataPath)) )
+		{
+	            $data = json_decode(file_get_contents($dataPath), 1);
+	            $fb = FormBuilder::create();
+	            $fb->ImportConfig($data);
+	            DB::alteration_message('Form Builder ['.$fb->Title.'] Created', 'created');
+		}
+	}
 
 	public function clearAllCache()
 	{

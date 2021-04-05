@@ -4,6 +4,7 @@ namespace IQnection\FormBuilder\Model;
 
 use SilverStripe\ORM\DataObject;
 use IQnection\FormBuilder\Extensions\Cacheable;
+use IQnection\FormBuilder\Extensions\Exportable;
 use IQnection\FormBuilder\Extensions\SelectField;
 use IQnection\FormBuilder\Model\Field;
 use SilverStripe\Forms;
@@ -21,7 +22,8 @@ class SelectFieldOption extends DataObject
 {
 	private static $extensions = [
 		Cacheable::class,
-		Duplicable::class
+		Duplicable::class,
+		Exportable::class
 	];
 
 	private static $table_name = 'FormBuilderSelectFieldOption';
@@ -56,6 +58,12 @@ class SelectFieldOption extends DataObject
 
 	private static $default_sort = 'SortOrder ASC';
 
+	private static $export_ignore_fields = [
+		'FieldID'
+	];
+
+	private static $import_unique_field = 'Value';
+
 	private static $form_builder_has_many_duplicates = [
 		'SelectionActions'
 	];
@@ -71,7 +79,7 @@ class SelectFieldOption extends DataObject
 			'OwnerFormActions',
 			'FieldID',
 		]);
-//		$fields->replaceField('Label', $fields->dataFieldByName('Label')->performReadonlyTransformation());
+
 		$fields->replaceField('Value', Forms\TextField::create('Value','Value'));
 		$fields->replaceField('DefaultSelected', $fields->dataFieldByName('DefaultSelected')->performReadonlyTransformation());
 

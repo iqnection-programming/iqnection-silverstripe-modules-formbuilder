@@ -39,6 +39,10 @@ class SelectField extends DataExtension
 		'Options'
 	];
 
+	private static $export_config_components = [
+		'Options'
+	];
+
 	private static $form_builder_has_many_duplicates = [
 		'Options'
 	];
@@ -61,7 +65,7 @@ class SelectField extends DataExtension
 			->setValue(false));
 		$fields->addFieldToTab('Root.Options', Forms\DropdownField::create('_prepopulate','Add Predefined Values')
 			->setSource($this->owner->Config()->get('prepopulate'))
-			->setEmptyString(' ')
+			->setEmptyString('-- Select --')
 			->setValue(false) );
 		$fields->addFieldToTab('Root.Options', $options_gf = Forms\GridField\GridField::create(
 			'Options',

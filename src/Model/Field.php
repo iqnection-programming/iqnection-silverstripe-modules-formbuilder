@@ -7,6 +7,7 @@ use SilverStripe\Core\ClassInfo;
 use SilverStripe\Forms;
 use SilverStripe\Core\Convert;
 use SilverStripe\Core\Injector\Injector;
+use IQnection\FormBuilder\Extensions\Exportable;
 use IQnection\FormBuilder\FormBuilder;
 use IQnection\FormBuilder\Model\FieldAction;
 use IQnection\FormBuilder\Model\FormAction;
@@ -29,7 +30,8 @@ class Field extends DataObject
 	private static $submission_value_class = SubmissionFieldValue::class;
 
 	private static $extensions = [
-		Duplicable::class
+		Duplicable::class,
+		Exportable::class
 	];
 
 	private static $db = [
@@ -69,9 +71,10 @@ class Field extends DataObject
 
 	private static $default_sort = 'SortOrder ASC';
 
-	private static $form_builder_has_many_duplicates = [
-		'FieldActions'
-	];
+    private static $export_ignore_fields = [
+        'ContainerID',
+        'ContainerClass'
+    ];
 
 	public function getCMSFields()
 	{
@@ -82,15 +85,32 @@ class Field extends DataObject
 			'FieldActions',
 			'OwnerFieldActions',
 			'OwnerSelectionActions',
-			'OwnerFormActions'
+			'OwnerFormActions',
+			'CssClasses',
+			'ShowInSubmissionsTable',
+			'HideByDefault'
 		]);
+
+		if ($this->getClassName() == Field::class)
+		{
+		    $classes = [];
+		    foreach(ClassInfo::subclassesFor(Field::class, false) as $subclass)
+		    {
+		        $classes[$subclass] = singleton($subclass)->singular_name();
+		    }
+		    $fields->addFieldToTab('Root.Main', Forms\DropdownField::create('ClassName', 'Field Type')
+		        ->setEmptyString('-- Select --')
+		        ->setSource($classes)
+		    );
+		    return $fields;
+		}
 
 		$fields->unshift( Forms\HeaderField::create('_fieldType', 'Field Type: '.$this->singular_name(),1));
 		$fields->dataFieldByName('Name')->setDescription('This is will be used in notifications, and as the column title on exports')
 			->setTitle('Field Name');
 		$fields->addFieldToTab('Root.Settings', Forms\CheckboxField::create('Enable','Activate this field'));
 		$fields->addFieldToTab('Root.Settings', Forms\CheckboxField::create('ShowInSubmissionsTable','Display this field in the submissions table') );
-		$fields->addFieldToTab('Root.Settings', $fields->dataFieldByName('CssClasses')->setDescription('For Developer Use') );
+		$fields->addFieldToTab('Root.Settings', Forms\TextField::create('CssClasses')->setDescription('For Developer Use') );
 		$fields->addFieldToTab('Root.Settings', Forms\CheckboxField::create('HideByDefault','Hide this field by default'));
 
 
@@ -123,6 +143,37 @@ class Field extends DataObject
 			$actionsData[] = $fieldAction->getActionData();
 		}
 
+        // allow users to move field in and out of field groups
+        $formBuilder = $this->FormBuilder();
+        $fieldGroups = FieldGroup::get()->Filter('ContainerID', $formBuilder->ID);
+        if ( ($fieldGroups->Count()) && (!($this instanceof FieldGroup)) )
+        {
+            $container = $this->Container();
+            $placementOptions = [];
+            $default = 0;
+            if ($formBuilder->ID != $container->ID)
+            {
+                // field is within a field group, provide an option to place top level
+                $placementOptions[-1] = 'Top Level';
+                $default = $this->ContainerID;
+                $fieldGroups = $fieldGroups->Exclude('ID', $container->ID);
+            }
+            $disabled = [];
+            foreach($fieldGroups as $fieldGroup)
+            {
+                $placementOptions[$fieldGroup->ID] = 'Move into Group: '.$fieldGroup->Name;
+                if ($fieldGroup->Fields()->Count() >= 3)
+                {
+                    $disabled[$fieldGroup->ID] = $fieldGroup->ID;
+                }
+            }
+
+            $fields->addFieldToTab('Root.Settings', Forms\DropdownField::create('MoveContainer','Group')
+                ->setValue($default)
+                ->setEmptyString('No Change')
+                ->setDisabledItems($disabled)
+                ->setSource($placementOptions));
+        }
 		return $fields;
 	}
 
@@ -293,6 +344,26 @@ class Field extends DataObject
 		$actions->removeByName(['action_doSaveAndAdd']);
 		return $actions;
 	}
+
+    public function onBeforeWrite()
+    {
+        parent::onBeforeWrite();
+        if (array_key_exists('MoveContainer', $_REQUEST))
+        {
+            $MoveContainer = $_REQUEST['MoveContainer'];
+            if ($MoveContainer == -1)
+            {
+                $formBuilder = $this->FormBuilder();
+                $this->ContainerClass = $formBuilder->getClassName();
+                $this->ContainerID = $formBuilder->ID;
+            }
+            elseif ($fieldGroup = FieldGroup::get()->byID($MoveContainer))
+            {
+                $this->ContainerClass = $fieldGroup->getClassName();
+                $this->ContainerID = $fieldGroup->ID;
+            }
+        }
+    }
 
 	public function onAfterWrite()
 	{
