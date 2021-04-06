@@ -12,10 +12,7 @@
 	],
 	"require": {
 		"silverstripe/framework": "^4.0",
-		"undefinedoffset/sortablegridfield": "*",
 		"symbiote/silverstripe-gridfieldextensions": "^3",
-		"iqnection-themes/mysite": "^2",
-		"iqnection-pages/basepages":"^2.0",
 		"jinjie/ss4-duplicate-dataobject": "*"
 	},
 	"extra": {

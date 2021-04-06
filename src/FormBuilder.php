@@ -24,7 +24,6 @@ use SilverStripe\ORM\DB;
 use SilverStripe\ORM\FieldType;
 use SilverStripe\View\Requirements;
 use Symbiote\GridFieldExtensions\GridFieldAddNewMultiClass;
-use UndefinedOffset\SortableGridField\Forms\GridFieldSortableRows;
 use SwiftDevLabs\DuplicateDataObject\Forms\GridField\GridFieldDuplicateAction;
 
 class FormBuilder extends DataObject
